@@ -116,6 +116,8 @@ target_include_directories(
 file(COPY ${PROJECT_SOURCE_DIR}/include/Elite/DataType.hpp DESTINATION ${PROJECT_BINARY_DIR}/include/Elite)
 file(COPY ${PROJECT_SOURCE_DIR}/include/Elite/VersionInfo.hpp DESTINATION ${PROJECT_BINARY_DIR}/include/Elite)
 file(COPY ${PROJECT_SOURCE_DIR}/include/Dashboard/DashboardClient.hpp DESTINATION ${PROJECT_BINARY_DIR}/include/Elite)
+file(COPY ${PROJECT_SOURCE_DIR}/include/Rtsi/RtsiConstants.hpp DESTINATION ${PROJECT_BINARY_DIR}/include/Elite)
+file(COPY ${PROJECT_SOURCE_DIR}/include/Rtsi/RtsiClient.hpp DESTINATION ${PROJECT_BINARY_DIR}/include/Elite)
 file(COPY ${PROJECT_SOURCE_DIR}/include/Rtsi/RtsiClientInterface.hpp DESTINATION ${PROJECT_BINARY_DIR}/include/Elite)
 file(COPY ${PROJECT_SOURCE_DIR}/include/Rtsi/RtsiIOInterface.hpp DESTINATION ${PROJECT_BINARY_DIR}/include/Elite)
 file(COPY ${PROJECT_SOURCE_DIR}/include/Rtsi/RtsiRecipe.hpp DESTINATION ${PROJECT_BINARY_DIR}/include/Elite)

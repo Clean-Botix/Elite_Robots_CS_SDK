@@ -13,6 +13,7 @@
 #include <Elite/RtsiRecipe.hpp>
 #include <Elite/VersionInfo.hpp>
 #include <Elite/EliteOptions.hpp>
+#include <Elite/RtsiConstants.hpp>
 
 #include <memory>
 
@@ -40,7 +41,7 @@ public:
      * @param ip The robot IP
      * @param port RTSI port
      */
-    ELITE_EXPORT virtual void connect(const std::string& ip, int port = 30004);
+    ELITE_EXPORT virtual bool connect(const std::string& ip, int port = DEFAULT_RTSI_PORT);
 
     /**
      * @brief Disconnect

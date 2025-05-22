@@ -30,8 +30,10 @@ static const std::string SCRIPT_COMMAND_DATA_SIZE_REPLACE = "{{SCRIPT_COMMAND_DA
 class EliteDriver::Impl {
 public:
     Impl() = delete;
-    explicit Impl(const std::string& robot_ip, const std::string& local_ip) 
-        : robot_ip_(robot_ip), local_ip_(local_ip) {
+    explicit Impl(const std::string& robot_ip, const std::string& local_ip, int script_sender_port) 
+        : robot_ip_(robot_ip),
+          local_ip_(local_ip),
+          script_sender_port_(script_sender_port) {
     }
 
     std::string readScriptFile(const std::string& file);
@@ -39,8 +41,10 @@ public:
                           int script_command_port, float servoj_time, float servoj_lookhead_time, 
                           int servoj_gain);
     std::string robot_script_;
+    std::string control_script_;
     std::string robot_ip_;
     std::string local_ip_;
+    int script_sender_port_;
     std::unique_ptr<ReverseInterface> reverse_server_;
     std::unique_ptr<TrajectoryInterface> trajectory_server_;
     std::unique_ptr<ScriptSender> script_sender_;
@@ -144,13 +148,13 @@ EliteDriver::EliteDriver(const std::string& robot_ip, const std::string& local_i
                 bool headless_mode, int script_sender_port, int reverse_port,
                 int trajectory_port, int script_command_port, float servoj_time,
                 float servoj_lookhead_time, int servoj_gain) {
-    ELITE_LOG_DEBUG("Initialization Elite Driver");
+    ELITE_LOG_DEBUG("Elite Driver initialization...");
     
-    impl_ = new EliteDriver::Impl(robot_ip, local_ip);
+    impl_ = new EliteDriver::Impl(robot_ip, local_ip, script_sender_port);
     
     // Generate external control script.
-    std::string control_script = impl_->readScriptFile(script_file);
-    impl_->scriptParamWrite(control_script, reverse_port, trajectory_port, script_command_port, servoj_time, servoj_lookhead_time, servoj_gain);
+    impl_->control_script_ = impl_->readScriptFile(script_file);
+    impl_->scriptParamWrite(impl_->control_script_, reverse_port, trajectory_port, script_command_port, servoj_time, servoj_lookhead_time, servoj_gain);
 
     impl_->reverse_server_ = std::make_unique<ReverseInterface>(reverse_port);
     ELITE_LOG_DEBUG("Created reverse interface");
@@ -158,18 +162,39 @@ EliteDriver::EliteDriver(const std::string& robot_ip, const std::string& local_i
     ELITE_LOG_DEBUG("Created trajectory interface");
     impl_->script_command_server_ = std::make_unique<ScriptCommandInterface>(script_command_port);
     ELITE_LOG_DEBUG("Created script command interface");
-    // Connect to robot primary port
+
+    // Instantiate primary port
     impl_->primary_port_ = std::make_unique<PrimaryPortInterface>();
-    if (!impl_->primary_port_->connect(robot_ip, PrimaryPortInterface::PRIMARY_PORT)) {
-        ELITE_LOG_ERROR("Connect robot primary port fail");
-        impl_->primary_port_.reset();
-    }
-    
+
     impl_->headless_mode_ = headless_mode;
 
-    if (headless_mode) {
+    ELITE_LOG_DEBUG("Elite Driver initialized but not yet connected");
+}
+
+
+EliteDriver::~EliteDriver() {
+    delete impl_;
+}
+
+bool EliteDriver::connect() {
+    ELITE_LOG_INFO("Connecting to robot primary port...");
+
+    if (!impl_->primary_port_->connect(impl_->robot_ip_, PrimaryPortInterface::PRIMARY_PORT)) {
+        ELITE_LOG_WARN(
+            "Robot primary port connection failed for %s:%d",
+            impl_->robot_ip_.c_str(), PrimaryPortInterface::PRIMARY_PORT
+        );
+        return false;
+    }
+
+    ELITE_LOG_INFO(
+        "Robot connected to primary port at %s:%d",
+        impl_->robot_ip_.c_str(), PrimaryPortInterface::PRIMARY_PORT
+    );
+    
+    if (impl_->headless_mode_) {
         impl_->robot_script_ += "def externalControl():\n";
-        std::istringstream control_script_stream(control_script);
+        std::istringstream control_script_stream(impl_->control_script_);
         std::string line;
         while (std::getline(control_script_stream, line)) {
             impl_->robot_script_ += "\t" + line + "\n";
@@ -178,17 +203,12 @@ EliteDriver::EliteDriver(const std::string& robot_ip, const std::string& local_i
 
         sendExternalControlScript();
     } else {
-        impl_->robot_script_ = control_script;
-        impl_->script_sender_ = std::make_unique<ScriptSender>(script_sender_port, impl_->robot_script_);
+        impl_->robot_script_ = impl_->control_script_;
+        impl_->script_sender_ = std::make_unique<ScriptSender>(impl_->script_sender_port_, impl_->robot_script_);
         ELITE_LOG_DEBUG("Created script sender");
     }
 
-    ELITE_LOG_DEBUG("Initialization done");
-}
-
-
-EliteDriver::~EliteDriver() {
-    delete impl_;
+    return true;
 }
 
 

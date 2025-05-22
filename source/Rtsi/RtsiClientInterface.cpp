@@ -1,5 +1,6 @@
 #include "RtsiClientInterface.hpp"
 #include "RtsiClient.hpp"
+
 using namespace ELITE;
 
 class RtsiClientInterface::Impl {
@@ -14,8 +15,8 @@ RtsiClientInterface::RtsiClientInterface() {
 RtsiClientInterface::~RtsiClientInterface() = default;
 
 
-void RtsiClientInterface::connect(const std::string& ip, int port) {
-    impl_->client_.connect(ip, port);
+bool RtsiClientInterface::connect(const std::string& ip, int port) {
+    return impl_->client_.connect(ip, port);
 }
 
 void RtsiClientInterface::disconnect() {

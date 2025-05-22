@@ -3,6 +3,7 @@
 #include "EliteException.hpp"
 #include "Utils.hpp"
 #include "RtsiRecipeInternal.hpp"
+#include "Log.hpp"
 
 #include <array>
 #include <iostream>
@@ -12,7 +13,9 @@ using namespace ELITE::UTILS;
 
 #define RTSI_HEADR_SIZE (3)
 
-void RtsiClient::connect(const std::string& ip, int port) {
+bool RtsiClient::connect(const std::string& ip, int port) {
+    ELITE_LOG_INFO("Connecting to robot RTSI port...");
+
     try {
         // If reconnect, the buffer not clean
         recv_buffer_.clear();
@@ -34,8 +37,12 @@ void RtsiClient::connect(const std::string& ip, int port) {
         io_context_.run();
         
     } catch(const boost::system::system_error &error) {
-        throw EliteException(EliteException::Code::SOCKET_CONNECT_FAIL, error.what());
+        ELITE_LOG_WARN("Robot RTSI connection failed for %s:%d: %s", ip.c_str(), port, error.what());
+        return false;
     }
+
+    ELITE_LOG_INFO("Robot RTSI connected to %s:%d", ip.c_str(), port);
+    return true;
 }
 
 void RtsiClient::disconnect() {

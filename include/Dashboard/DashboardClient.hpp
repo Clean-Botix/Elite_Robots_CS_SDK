@@ -12,6 +12,8 @@
 
 namespace ELITE {
 
+static constexpr int DEFAULT_DASHBOARD_PORT = 29999;
+
 class DashboardClient
 {
 public:
@@ -26,7 +28,7 @@ public:
      * @return true connected success
      * @return false connected fail
      */
-    ELITE_EXPORT bool connect(const std::string& ip, int port = 29999);
+    ELITE_EXPORT bool connect(const std::string& ip, int port = DEFAULT_DASHBOARD_PORT);
 
     /**
      * @brief Disconnect 

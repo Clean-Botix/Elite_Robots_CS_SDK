@@ -10,7 +10,7 @@
 #include <vector>
 #include <array>
 #include <functional>
-
+#include <Elite/RtsiConstants.hpp>
 
 namespace ELITE {
 
@@ -33,7 +33,7 @@ public:
      * @param ip The robot IP
      * @param port RTSI port
      */
-    void connect(const std::string& ip, int port = 30004);
+    bool connect(const std::string& ip, int port = DEFAULT_RTSI_PORT);
 
     /**
      * @brief Disconnect

@@ -24,7 +24,9 @@ bool RtsiIOInterface::connect(const std::string& ip) {
         disconnect();
     }
     
-    RtsiClientInterface::connect(ip);
+    if (!RtsiClientInterface::connect(ip)) {
+        return false;
+    }
     
     if(!negotiateProtocolVersion()) {
         ELITE_LOG_FATAL("RTSI negitiate protocol version fail.");

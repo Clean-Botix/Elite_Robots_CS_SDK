@@ -61,6 +61,8 @@ public:
      */
     ELITE_EXPORT ~EliteDriver();
 
+    ELITE_EXPORT bool connect();
+
     /**
      * @brief Write servoj() points to robot
      * 
