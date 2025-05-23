@@ -3,6 +3,7 @@
 
 #include "TcpServer.hpp"
 #include "DataType.hpp"
+#include "ReversePort.hpp"
 
 #include <memory>
 #include <boost/asio.hpp>
@@ -10,8 +11,7 @@
 namespace ELITE
 {
 
-class ScriptCommandInterface
-{
+class ScriptCommandInterface : public ReversePort {
 private:
     enum class Cmd{
         ZERO_FTSENSOR = 0,
@@ -20,26 +20,6 @@ private:
         START_FORCE_MODE = 3,
         END_FORCE_MODE = 4,
     };
-
-    std::unique_ptr<TcpServer> server_;
-    std::shared_ptr<boost::asio::ip::tcp::socket> client_;
-    std::mutex client_mutex_;
-
-    /**
-     * @brief Send socket data to client
-     * 
-     * @param buffer data buffer
-     * @param size buffer size
-     * @return int 
-     */
-    int write(int32_t buffer[], int size);
-
-    /**
-     * @brief Not real read data. Check connection state.
-     * 
-     */
-    void asyncRead();
-
 public:
     static constexpr int SCRIPT_COMMAND_DATA_SIZE = 26;
 
@@ -116,14 +96,6 @@ public:
      * @return false fail
      */
     bool endForceMode();
-
-    /**
-     * @brief Is robot connect to server.
-     * 
-     * @return true connected
-     * @return false don't
-     */
-    bool isRobotConnect();
 
 };
 

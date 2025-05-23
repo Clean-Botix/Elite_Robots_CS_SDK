@@ -52,7 +52,7 @@ public:
             boost::asio::detail::socket_option::boolean<IPPROTO_TCP, TCP_QUICKACK> quickack(true);
             socket_ptr->set_option(quickack);
 #endif
-            boost::asio::ip::tcp::endpoint endpoint(boost::asio::ip::address::from_string(ip), port);
+            boost::asio::ip::tcp::endpoint endpoint(boost::asio::ip::make_address(ip), port);
             socket_ptr->async_connect(endpoint, [&](const boost::system::error_code& error) {
                 if (error) {
                     throw boost::system::system_error(error);
@@ -68,6 +68,7 @@ public:
 };
 
 TEST(ScriptCommandInterfaceTest, SendAndReceive) {
+    TcpServer::start();
     std::unique_ptr<ScriptCommandInterface> script_cmd;
     script_cmd.reset(new ScriptCommandInterface(SCRIPT_COMMAND_INTERFACE_TEST_PORT));
     
@@ -171,6 +172,8 @@ TEST(ScriptCommandInterfaceTest, SendAndReceive) {
     int32_t end_force_mode_buffer[ScriptCommandInterface::SCRIPT_COMMAND_DATA_SIZE] = {0};
     end_force_mode_buffer[0] = htonl(Cmd::END_FORCE_MODE);
     ARRAY_EQUAL_ASSERT(buffer, end_force_mode_buffer);
+
+    TcpServer::stop();
 }
 
 int main(int argc, char** argv) {

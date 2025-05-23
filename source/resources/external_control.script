@@ -1,6 +1,9 @@
 # HEADER_BEGIN
 
-#Constants
+# Import module
+import threading
+
+# Constants
 TRAJECTORY_RESULT_SUCCESS = 0
 TRAJECTORY_RESULT_CANCELED = 1
 TRAJECTORY_RESULT_FAILURE = 2
@@ -27,11 +30,7 @@ MODE_POSE = 5
 MODE_FREEDRIVE = 6
 MODE_TOOL_IN_CONTACT = 7
 
-STOPJ_ACCELERATION = 4.0
-
-SERVO_UNINITIALIZED = -1
-SERVO_IDLE = 0
-SERVO_RUNNING = 1
+STOPJ_ACCELERATION = {{STOP_J_REPLACE}}
 
 SCRIPT_CMD_ZERO_FTSENSOR = 0
 SCRIPT_CMD_SET_PAYLOAD = 1
@@ -39,10 +38,20 @@ SCRIPT_CMD_SET_TOOL_VOLTAGE = 2
 SCRIPT_CMD_START_FORCE_MODE = 3
 SCRIPT_CMD_END_FORCE_MODE = 4
 
+FREEDRIVE_START = 1
+FREEDRIVE_NOOP = 0
+FREEDRIVE_END = -1
+
 # Data size of the message received on the reverse interface
 REVERSE_DATA_SIZE = {{REVERSE_DATA_SIZE_REPLACE}}
 TRAJECTORY_DATA_SIZE = {{TRAJECTORY_DATA_SIZE_REPLACE}}
 SCRIPT_COMMAND_DATA_SIZE = {{SCRIPT_COMMAND_DATA_SIZE_REPLACE}}
+
+# Any motion commands resulting in a velocity higher than that will be ignored.
+JOINT_IGNORE_SPEED = 15.0
+
+# Ensure that the cmd_servo_joints variable is synchronized under multi-threaded conditions
+SERVOJ_DATA_MUTEX = threading.Lock()
 
 #Global variables are also showed in the Teach pendants variable list
 global control_mode
@@ -50,8 +59,42 @@ global cmd_speedl_tool_speed
 global cmd_speed_joint
 global steptime
 global trajectory_point_num
-global cmd_servo_state, cmd_servo_joints_last, cmd_servo_joints
-global extrapolate_max_count, extrapolate_count
+global cmd_servo_joints
+global violation_popup_counter
+
+"""
+@brief Function to verify whether the specified target can be reached within the defined time frame while staying within the robot's speed limits
+
+@param step_start array is the joint target to start
+@param step_end array is the joint target to reach
+@param time float is the time to reach the target
+
+@returns bool true if the target is reachable within the robot's speed limits, false otherwise
+"""
+def targetWithinLimits(step_start, step_end, time):
+    global violation_popup_counter
+    for i in range(6):
+        velocity = norm(step_end[i] - step_start[i]) / time
+        if velocity > JOINT_IGNORE_SPEED:
+            str_msg = "Velocity {}  required in joint {}  to go from {} to {}  within {} seconds \
+                       is exceeding the joint velocity limits. \
+                       Ignoring commands until a valid command is received.".format(velocity, i, step_start[i], step_end[i], time)
+            if violation_popup_counter == 0:
+                # We want a popup when an invalid commant is sent. As long as we keep sending invalid
+                # commands, we do not want to repeat the popup.
+                popup(str_msg, title="External Control speed limit", blocking=False, warning=True)
+            if violation_popup_counter * get_steptime() % 5.0 == 0:
+                # We want to have a log printed regularly. We are receiving motion commands that are not
+                # feasible. The user should have a chance to know about this.
+                textmsg(str_msg)
+                textmsg("start configuration: ", step_start)
+                textmsg("end   configuration: ", step_end)
+            violation_popup_counter += 1
+            return False
+    if violation_popup_counter > 0:
+        textmsg("Received valid position. Resuming execution.")
+        violation_popup_counter = 0
+    return True
 
 def trajectoryThread():
     global trajectory_point_num
@@ -79,47 +122,27 @@ def trajectoryThread():
     socket_send_int(TRAJECTORY_RESULT_SUCCESS, "trajectory_socket")
 
 def setServoSetpoint(joints):
-    global cmd_servo_state, cmd_servo_joints_last, cmd_servo_joints
-    cmd_servo_state = SERVO_RUNNING
-    cmd_servo_joints_last = cmd_servo_joints
-    cmd_servo_joints = joints
-
-def extrapolate():
-    global cmd_servo_joints_last, cmd_servo_joints
-    diff = [cmd_servo_joints[0] - cmd_servo_joints_last[0], cmd_servo_joints[1] - cmd_servo_joints_last[1], cmd_servo_joints[2] - cmd_servo_joints_last[2], cmd_servo_joints[3] - cmd_servo_joints_last[3], cmd_servo_joints[4] - cmd_servo_joints_last[4], cmd_servo_joints[5] - cmd_servo_joints_last[5]]
-    cmd_servo_joints_last = cmd_servo_joints
-    cmd_servo_joints = [cmd_servo_joints[0] + diff[0], cmd_servo_joints[1] + diff[1], cmd_servo_joints[2] + diff[2], cmd_servo_joints[3] + diff[3], cmd_servo_joints[4] + diff[4], cmd_servo_joints[5] + diff[5]]
-
-    return cmd_servo_joints
+    global cmd_servo_joints
+    if targetWithinLimits(cmd_servo_joints, joints, steptime):
+        with SERVOJ_DATA_MUTEX:
+            cmd_servo_joints = joints
+    # If the target has been interpolating too far away from the robot, so it would trigger the limit
+    # check, but the target is close to where the robot currently is, also accept the command.
+    # This can, for example, happen if a command series was too fast for the robot to follow, which
+    # triggers a path deviation on the commanding side and that is mitigated by a hold-position
+    # command.
+    elif targetWithinLimits(get_actual_joint_positions(), joints, steptime):
+        with SERVOJ_DATA_MUTEX:
+            cmd_servo_joints = joints
 
 def servoThread():
-    global cmd_servo_state, cmd_servo_joints
-    global extrapolate_max_count, extrapolate_count
+    global cmd_servo_joints
     textmsg("ExternalControl: Starting servo thread")
-    state = SERVO_IDLE
     while control_mode == MODE_SERVOJ:
-        joints = cmd_servo_joints
-        do_extrapolate = False
-        if (cmd_servo_state == SERVO_IDLE):
-            do_extrapolate = True
-
-        state = cmd_servo_state
-        if cmd_servo_state > SERVO_UNINITIALIZED:
-            cmd_servo_state = SERVO_IDLE
-
-        if do_extrapolate:
-            extrapolate_count = extrapolate_count + 1
-            if extrapolate_count > extrapolate_max_count:
-                extrapolate_max_count = extrapolate_count
-            joints = extrapolate()
-            servoj(joints, {{SERVO_J_REPLACE}})
-
-        elif state == SERVO_RUNNING:
-            extrapolate_count = 0
-            servoj(joints, {{SERVO_J_REPLACE}})
-        else:
-            extrapolate_count = 0
-            sync()
+        joints = get_actual_joint_positions()
+        with SERVOJ_DATA_MUTEX:
+            joints = cmd_servo_joints
+        servoj(joints, {{SERVO_J_REPLACE}})
     textmsg("ExternalControl: servo thread ended")
     stopj(STOPJ_ACCELERATION)
 
@@ -199,15 +222,12 @@ cmd_speed_joint = [0, 0, 0, 0, 0, 0]
 control_mode = MODE_UNINITIALIZED
 steptime = get_steptime()
 trajectory_point_num = 0
-cmd_servo_state = SERVO_UNINITIALIZED
 cmd_servo_joints = get_actual_joint_positions()
-cmd_servo_joints_last = get_actual_joint_positions()
-extrapolate_count = 0
-extrapolate_max_count = 0
 script_command_thread_handle = start_thread(scriptCommands, ())
 move_thread_handle = 0
 trajectory_thread_handle = 0
 read_timeout = 0.0 # First read is blocking
+violation_popup_counter = 0
 
 while control_mode > MODE_STOPPED:
     params_mult = socket_read_binary_integer(REVERSE_DATA_SIZE, "reverse_socket", read_timeout)
@@ -224,6 +244,9 @@ while control_mode > MODE_STOPPED:
                 stopj(STOPJ_ACCELERATION)
                 trajectoryClearPoints()
                 socket_send_int(TRAJECTORY_RESULT_CANCELED, "trajectory_socket")
+            elif control_mode == MODE_FREEDRIVE:
+                textmsg("End freedrive mode")
+                end_freedrive_mode()
             else:
                 stop_thread(move_thread_handle)
                 move_thread_handle = 0
@@ -231,6 +254,7 @@ while control_mode > MODE_STOPPED:
 
             control_mode = params_mult[REVERSE_DATA_SIZE]
             
+            # Start new motion mode
             if control_mode == MODE_SPEEDL:
                 move_thread_handle = start_thread(speedlThread, ())
             elif control_mode == MODE_TRAJECTORY:
@@ -240,6 +264,7 @@ while control_mode > MODE_STOPPED:
             elif control_mode == MODE_SPEEDJ:
                 move_thread_handle = start_thread(speedjThread, ())
             elif control_mode == MODE_SERVOJ:
+                cmd_servo_joints = get_actual_joint_positions()
                 move_thread_handle = start_thread(servoThread, ())
             
         # Update the motion commands with new parameters
@@ -264,15 +289,23 @@ while control_mode > MODE_STOPPED:
                 trajectoryClearPoints()
                 stopj(STOPJ_ACCELERATION)
                 socket_send_int(TRAJECTORY_RESULT_CANCELED, "trajectory_socket")
-              
-
+        elif control_mode == MODE_FREEDRIVE:
+            if params_mult[2] == FREEDRIVE_START:
+                textmsg("Start freedrive mode")
+                freedrive_mode()
+            elif params_mult[2] == FREEDRIVE_END:
+                textmsg("End freedrive mode")
+                end_freedrive_mode()
     else:
         textmsg("Socket timed out waiting for command on reverse_socket. The script will exit now.")
         control_mode = MODE_STOPPED
 
 stop_thread(script_command_thread_handle)
+join_thread(script_command_thread_handle)
 stop_thread(move_thread_handle)
+join_thread(move_thread_handle)
 stop_thread(trajectory_thread_handle)
+join_thread(trajectory_thread_handle)
 stopj(STOPJ_ACCELERATION)
 textmsg("ExternalControl: All threads ended")
 socket_close("reverse_socket")

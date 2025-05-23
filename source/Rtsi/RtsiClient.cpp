@@ -18,7 +18,6 @@ bool RtsiClient::connect(const std::string& ip, int port) {
 
     try {
         // If reconnect, the buffer not clean
-        recv_buffer_.clear();
         socket_ptr_.reset(new boost::asio::ip::tcp::socket(io_context_));
         resolver_ptr_.reset(new boost::asio::ip::tcp::resolver(io_context_));
         socket_ptr_->open(boost::asio::ip::tcp::v4());
@@ -28,7 +27,7 @@ bool RtsiClient::connect(const std::string& ip, int port) {
 #if defined(__linux) || defined(linux) || defined(__linux__)
         socket_ptr_->set_option(boost::asio::detail::socket_option::boolean<IPPROTO_TCP, TCP_QUICKACK>(true));
 #endif
-        boost::asio::ip::tcp::endpoint endpoint(boost::asio::ip::address::from_string(ip), port);
+        boost::asio::ip::tcp::endpoint endpoint(boost::asio::ip::make_address(ip), port);
         socket_ptr_->async_connect(endpoint, [&](const boost::system::error_code& error) {
             if (!error) {
                 connection_state = ConnectionState::CONNECTED;
@@ -213,10 +212,12 @@ void RtsiClient::socketDisconnect() {
     connection_state = DISCONNECTED;
 }
 
-int RtsiClient::receiveToBuffer(unsigned timeout_ms) {
-    std::vector<uint8_t> temp_buffer(4096);
+int RtsiClient::receiveSocket(std::vector<uint8_t>& buff, int size, int offset, unsigned timeout_ms) {
+    if (buff.size() < (size + offset)) {
+        buff.resize(size + offset);
+    }
     int read_len = 0;
-    socket_ptr_->async_read_some(boost::asio::buffer(temp_buffer), [&](const boost::system::error_code &ec, std::size_t nb) {
+    boost::asio::async_read(*socket_ptr_, boost::asio::buffer(buff.data() + offset, size), [&](const boost::system::error_code &ec, std::size_t nb) {
         if (ec == boost::asio::error::operation_aborted) {
             throw EliteException(EliteException::Code::SOCKET_OPT_CANCEL, ec.message());
         } else if (ec) {
@@ -245,14 +246,12 @@ int RtsiClient::receiveToBuffer(unsigned timeout_ms) {
         socketDisconnect();
 
         // Clear socket receive or send operation
-        io_context_.reset();
-
-        // Run the io_context again.Make it in stopped
+        auto work = boost::asio::make_work_guard(io_context_);
         io_context_.run();
+        work.reset();
 
         return -1;
     }
-    recv_buffer_.insert(recv_buffer_.end(), temp_buffer.begin(), temp_buffer.begin() + read_len);
     return read_len;
 }
 
@@ -260,43 +259,30 @@ int RtsiClient::receiveToBuffer(unsigned timeout_ms) {
 void RtsiClient::receive(const PackageType& target_type, 
                          std::function<void(int, const std::vector<uint8_t>&)> parser_func, 
                          bool read_newest) {
-    while (receiveToBuffer() > 0 || recv_buffer_.size() > RTSI_HEADR_SIZE) {
-        if (recv_buffer_.size() < RTSI_HEADR_SIZE) {
-            continue;
-        }
-        // Parser the packets in the buffer
-        do {
-            // Parser head of package
-            uint16_t package_len = 0;
-            EndianUtils::unpack(recv_buffer_.begin(), package_len);
-            if (package_len > recv_buffer_.size()) {
+    std::vector<uint8_t> buff(4069);
+    // Receive RTSI package head
+    while (receiveSocket(buff, RTSI_HEADR_SIZE, 0) > 0) {
+        // Parser package head
+        uint16_t pkg_len;
+        EndianUtils::unpack(buff.begin(), pkg_len);
+        PackageType pkg_type = static_cast<PackageType>(buff[2]);
+        
+        // Receive RTSI package body
+        if(receiveSocket(buff, (pkg_len - RTSI_HEADR_SIZE), RTSI_HEADR_SIZE) <= 0) {
                 break;
             }
-            PackageType package_type = static_cast<PackageType>(recv_buffer_[2]);
-            // If the package is target package, parser it
-            if (package_type == target_type) {
-                parser_func(package_len, recv_buffer_);
-                recv_buffer_.erase(recv_buffer_.begin(), recv_buffer_.begin() + package_len);
+        
+        if (target_type == pkg_type) {
+            parser_func(pkg_len, buff);
                 if (!read_newest) {
                     return;
-                }
-                // If want to parser the newest message
-                if (recv_buffer_.size() >= RTSI_HEADR_SIZE) {
-                    uint16_t next_package_len = 0;
-                    EndianUtils::unpack(recv_buffer_.begin(), next_package_len);
-                    if (next_package_len <= recv_buffer_.size() &&
-                        (PackageType)recv_buffer_[2] == target_type) {
+            } else {
+                if (socket_ptr_->available() >= RTSI_HEADR_SIZE) {
                         continue;
                     } else {
-                        return;
+                    break;
                     }
-                } else {
-                    return;
                 }
-            } else {
-                // Remove not target package bytes in buffer
-                recv_buffer_.erase(recv_buffer_.begin(), recv_buffer_.begin() + package_len);
             }
-        } while (recv_buffer_.size() > RTSI_HEADR_SIZE);
     }
 }

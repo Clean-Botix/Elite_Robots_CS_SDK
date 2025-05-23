@@ -10,25 +10,25 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
     remove_definitions(-DELITE_EXPORT_LIBRARY)
 endif()
 
+find_package(Boost REQUIRED)
+
 foreach(SOURCE ${SOURCES})
     get_filename_component(ELITE_SDK_EXAMPLE_NAME ${SOURCE} NAME_WE)
     add_executable(${ELITE_SDK_EXAMPLE_NAME} ${SOURCE})
-    target_include_directories(
-        ${ELITE_SDK_EXAMPLE_NAME} 
-        PUBLIC 
-        ${CMAKE_BINARY_DIR}/include
-    )
     target_link_libraries(
         ${ELITE_SDK_EXAMPLE_NAME} 
-        elite-cs-series-sdk
+        elite-cs-series-sdk::shared
         ${SYSTEM_LIB}
     )
     target_link_directories(
         ${ELITE_SDK_EXAMPLE_NAME} 
-        PRIVATE ${CMAKE_BINARY_DIR}
+        PRIVATE 
+        ${CMAKE_BINARY_DIR}
     )
-    add_dependencies(
-        ${ELITE_SDK_EXAMPLE_NAME} ${PROJECT_NAME}_SHARED
+    target_include_directories(
+        ${ELITE_SDK_EXAMPLE_NAME}
+        PRIVATE 
+        ${Boost_INCLUDE_DIRS}
     )
 endforeach()
 

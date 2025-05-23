@@ -122,7 +122,7 @@ public:
      * @return true success
      * @return false false
      */
-    bool receiveData(RtsiRecipeSharedPtr recipe, bool read_newest = false);
+    ELITE_EXPORT bool receiveData(RtsiRecipeSharedPtr recipe, bool read_newest = false);
 
     /**
      * @brief Get connection state

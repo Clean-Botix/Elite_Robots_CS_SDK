@@ -1,31 +1,27 @@
 #include "DashboardClient.hpp"
-#include "DataType.hpp"
-#include "Log.hpp"
+#include <boost/asio.hpp>
 #include <iostream>
 #include <regex>
-#include <boost/asio.hpp>
 #include <thread>
+#include "DataType.hpp"
+#include "Log.hpp"
 
 using namespace ELITE;
 using namespace std::chrono_literals;
 
 class DashboardClient::Impl {
-public:
+   public:
     std::mutex socket_mutex_;
     boost::asio::io_context io_context_;
     std::unique_ptr<boost::asio::ip::tcp::socket> socket_ptr_;
     std::unique_ptr<boost::asio::ip::tcp::resolver> resolver_ptr_;
-    ConnectionState connection_state_;
 
     void disconnect();
 };
 
-DashboardClient::DashboardClient() { 
-    impl_ = std::make_unique<Impl>();
-}
+DashboardClient::DashboardClient() { impl_ = std::make_unique<Impl>(); }
 
-DashboardClient::~DashboardClient() { }
-
+DashboardClient::~DashboardClient() {}
 
 bool DashboardClient::connect(const std::string& ip, int port) {
     bool ret_val = false;
@@ -42,7 +38,7 @@ bool DashboardClient::connect(const std::string& ip, int port) {
         boost::asio::detail::socket_option::boolean<IPPROTO_TCP, TCP_QUICKACK> quickack(true);
         impl_->socket_ptr_->set_option(quickack);
 #endif
-        boost::asio::ip::tcp::endpoint endpoint(boost::asio::ip::address::from_string(ip), port);
+        boost::asio::ip::tcp::endpoint endpoint(boost::asio::ip::make_address(ip), port);
         boost::system::error_code ec = boost::asio::error::would_block;
 
         impl_->socket_ptr_->async_connect(endpoint, [&](const boost::system::error_code& error) {
@@ -52,20 +48,19 @@ bool DashboardClient::connect(const std::string& ip, int port) {
                 ret_val = false;
             } else {
                 ret_val = true;
-                impl_->connection_state_ = CONNECTED;
             }
         });
 
         do {
             impl_->io_context_.run_one();
-            // TODO: When all tasks in the io_context are completed, the io_context enters a 'stopped' state. 
+            // TODO: When all tasks in the io_context are completed, the io_context enters a 'stopped' state.
             // How can we prevent the io_context from entering the 'stopped' state without using the 'restart' method?
             if (impl_->io_context_.stopped()) {
                 impl_->io_context_.restart();
             }
         } while (ec == boost::asio::error::would_block);
 
-    } catch(const boost::system::system_error &error) {
+    } catch (const boost::system::system_error& error) {
         ELITE_LOG_ERROR("Dashboard connect to robot fail: %s", error.what());
         throw EliteException(EliteException::Code::SOCKET_CONNECT_FAIL, error.what());
     }
@@ -78,11 +73,7 @@ void DashboardClient::disconnect() {
     impl_->disconnect();
 }
 
-void DashboardClient::Impl::disconnect() {
-    socket_ptr_.reset();
-    connection_state_ = ConnectionState::DISCONNECTED;
-}
-
+void DashboardClient::Impl::disconnect() { socket_ptr_.reset(); }
 
 bool DashboardClient::brakeRelease() {
     std::string response = sendAndRequest("brakeRelease\n", "Brake (Releasing.*|is released).*");
@@ -91,7 +82,6 @@ bool DashboardClient::brakeRelease() {
     }
     return waitForReply("robotMode\n", "robotMode: RUNNING\r\n");
 }
-
 
 bool DashboardClient::closeSafetyDialog() {
     std::string response = sendAndRequest("closeSafetyDialog\n", "closing .* dialog\r\n");
@@ -115,7 +105,7 @@ bool DashboardClient::log(const std::string& message) {
         message_cpy.replace(found, 1, "\\n");
         found = message_cpy.find("\n", found);
     }
-    
+
     found = message_cpy.find("\r");
     while (found != std::string::npos) {
         message_cpy.replace(found, 1, "\\r");
@@ -131,7 +121,7 @@ bool DashboardClient::popup(const std::string& arg, const std::string& message) 
     std::string send_string;
     if (arg == "-c") {
         send_string = "popup " + arg + "\n";
-    } else if(arg == "-s") {
+    } else if (arg == "-s") {
         send_string = "popup " + arg + message + "\n";
     } else {
         throw EliteException(EliteException::Code::ILLEGAL_PARAM, "dashboard popup command");
@@ -150,9 +140,7 @@ void DashboardClient::reboot() {
     impl_->disconnect();
 }
 
-std::string DashboardClient::robot() {
-    return sendAndRequest("robot\n");
-}
+std::string DashboardClient::robot() { return sendAndRequest("robot\n"); }
 
 bool DashboardClient::powerOn() {
     std::string response = sendAndRequest("robotControl -on\n", "Powering on\r\n");
@@ -161,7 +149,7 @@ bool DashboardClient::powerOn() {
 
 bool DashboardClient::powerOff() {
     std::string response = sendAndRequest("robotControl -off\n", "Powering off\r\n");
-    // Beacuse of robot after power off need time to 
+    // Beacuse of robot after power off need time to
     // complete some operation (robot still return "POWER_OFF" by "robotMode" command), delay there
     std::this_thread::sleep_for(500ms);
     return waitForReply("robotMode\n", "robotMode: POWER_OFF\r\n");
@@ -189,7 +177,7 @@ RobotMode DashboardClient::robotMode() {
         return RobotMode::DISCONNECTED;
     } else if (mode == "CONFIRM_SAFETY") {
         return RobotMode::CONFIRM_SAFETY;
-    }  else if (mode == "BOOTING") {
+    } else if (mode == "BOOTING") {
         return RobotMode::BOOTING;
     } else if (mode == "POWER_OFF") {
         return RobotMode::POWER_OFF;
@@ -207,7 +195,7 @@ RobotMode DashboardClient::robotMode() {
         return RobotMode::WAITING_CALIBRATION;
     } else {
         return RobotMode::UNKNOWN;
-    }   
+    }
 }
 
 SafetyMode DashboardClient::safetyMode() {
@@ -230,9 +218,9 @@ SafetyMode DashboardClient::safetyMode() {
         return SafetyMode::ROBOT_EMERGENCY_STOP;
     } else if (status == "VIOLATION") {
         return SafetyMode::VIOLATION;
-    } else if(status == "FAULT") {
+    } else if (status == "FAULT") {
         return SafetyMode::FAULT;
-    } else if(status == "VALIDATE_JOINT_ID") {
+    } else if (status == "VALIDATE_JOINT_ID") {
         return SafetyMode::VALIDATE_JOINT_ID;
     } else if (status == "UNDEFINED_SAFETY_MODE") {
         return SafetyMode::UNDEFINED_SAFETY_MODE;
@@ -240,11 +228,16 @@ SafetyMode DashboardClient::safetyMode() {
         return SafetyMode::AUTOMATIC_MODE_SAFEGUARD_STOP;
     } else if (status == "SYSTEM_THREE_POSITION_ENABLING_STOP") {
         return SafetyMode::SYSTEM_THREE_POSITION_ENABLING_STOP;
-    }  else if (status == "TP_THREE_POSITION_ENABLING_STOP") {
+    } else if (status == "TP_THREE_POSITION_ENABLING_STOP") {
         return SafetyMode::TP_THREE_POSITION_ENABLING_STOP;
     } else {
         return SafetyMode::UNKNOWN;
     }
+}
+
+bool DashboardClient::safetySystemRestart() {
+    sendAndRequest("safety -r\n", "Restarting safety board.*");
+    return waitForReply("safety -m\n", "Safety mode: NORMAL\r\n");
 }
 
 TaskStatus DashboardClient::runningStatus() {
@@ -266,9 +259,7 @@ bool DashboardClient::unlockProtectiveStop() {
     return !response.empty();
 }
 
-std::string DashboardClient::usage(const std::string& cmd) {
-    return sendAndRequest("usage " + cmd + "\n");
-}
+std::string DashboardClient::usage(const std::string& cmd) { return sendAndRequest("usage " + cmd + "\n"); }
 
 std::string DashboardClient::version() {
     std::string request = sendAndRequest("version\n");
@@ -351,12 +342,12 @@ TaskStatus DashboardClient::getTaskStatus() {
     std::string status_str = sendAndRequest("task -s\n", "Task is .*");
     if (status_str.find("stopped") != std::string::npos) {
         return TaskStatus::STOPPED;
-    } else if(status_str.find("paused") != std::string::npos) {
+    } else if (status_str.find("paused") != std::string::npos) {
         return TaskStatus::PAUSED;
-    } else if(status_str.find("running") != std::string::npos) {
+    } else if (status_str.find("running") != std::string::npos) {
         return TaskStatus::PLAYING;
     } else {
-        return TaskStatus::STOPPED; 
+        return TaskStatus::STOPPED;
     }
 }
 
@@ -364,7 +355,7 @@ bool DashboardClient::taskIsRunning() {
     std::string request = sendAndRequest("task -r\n", "Task is .*");
     if (request.find("not running") != std::string::npos) {
         return false;
-    } else if(request.find("is running") != std::string::npos) {
+    } else if (request.find("is running") != std::string::npos) {
         return true;
     }
     return false;
@@ -379,21 +370,24 @@ bool DashboardClient::isTaskSaved() {
     }
 }
 
+std::string DashboardClient::sendAndReceive(const std::string& cmd) {
+    if (cmd.back() != '\n') {
+        sendCommand(cmd + "\n");
+    } else {
+        sendCommand(cmd);
+    }
+    return asyncReadLine();
+}
+
 std::string DashboardClient::asyncReadLine(unsigned timeout_ms) {
     boost::system::error_code ec = boost::asio::error::would_block;
     boost::asio::streambuf stream_buffer;
-    boost::asio::async_read_until(
-        *impl_->socket_ptr_, 
-        stream_buffer, 
-        '\n', 
-        [&](const boost::system::error_code& error, std::size_t nb) {
-            ec = error;
-        }
-    );
+    boost::asio::async_read_until(*impl_->socket_ptr_, stream_buffer, '\n',
+                                  [&](const boost::system::error_code& error, std::size_t nb) { ec = error; });
 
     do {
         impl_->io_context_.run_for(std::chrono::steady_clock::duration(std::chrono::milliseconds(timeout_ms)));
-        // TODO: When all tasks in the io_context are completed, the io_context enters a 'stopped' state. 
+        // TODO: When all tasks in the io_context are completed, the io_context enters a 'stopped' state.
         // How can we prevent the io_context from entering the 'stopped' state without using the 'restart' method?
         if (impl_->io_context_.stopped()) {
             impl_->io_context_.restart();
@@ -402,8 +396,7 @@ std::string DashboardClient::asyncReadLine(unsigned timeout_ms) {
     if (ec) {
         throw EliteException(EliteException::Code::SOCKET_FAIL, ec.message());
     }
-    std::string line(boost::asio::buffers_begin(stream_buffer.data()),
-                     boost::asio::buffers_end(stream_buffer.data()));
+    std::string line(boost::asio::buffers_begin(stream_buffer.data()), boost::asio::buffers_end(stream_buffer.data()));
     return line;
 }
 
@@ -425,10 +418,11 @@ std::string DashboardClient::sendAndRequest(const std::string& cmd, const std::s
     std::string response = asyncReadLine();
     if (!expected.empty()) {
         std::smatch match;
-        bool ret = std::regex_search(response, match,std::regex(expected));
+        bool ret = std::regex_search(response, match, std::regex(expected));
         if (!ret) {
-            throw EliteException(EliteException::Code::DASHBOARD_NOT_EXPECT_RECIVE, 
-                                 "Dashboard command \"" + cmd + "\" response expected: " + expected + ". But received: " + response);
+            throw EliteException(
+                EliteException::Code::DASHBOARD_NOT_EXPECT_RECIVE,
+                "Dashboard command \"" + cmd + "\" response expected: " + expected + ". But received: " + response);
             return std::string();
         }
         return match[0];
@@ -437,7 +431,8 @@ std::string DashboardClient::sendAndRequest(const std::string& cmd, const std::s
     }
 }
 
-bool DashboardClient::waitForReply(const std::string& cmd, const std::string& expected, const std::chrono::duration<double> timeout) {
+bool DashboardClient::waitForReply(const std::string& cmd, const std::string& expected,
+                                   const std::chrono::duration<double> timeout) {
     const std::chrono::duration<double> wait_period = 100ms;
     std::chrono::duration<double> time_done(0);
     std::string response;

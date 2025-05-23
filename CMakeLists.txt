@@ -1,6 +1,10 @@
 cmake_minimum_required(VERSION 3.16)
 
-project(elite-cs-series-sdk VERSION 1.1.0)
+project(elite-cs-series-sdk VERSION 1.2.0)
+
+option(ELITE_COMPILE_TESTS "Compile tests" OFF)
+option(ELITE_COMPILE_DOC "Compile documentation" OFF)
+option(ELITE_COMPILE_EXAMPLES "Compile examples" OFF)
 
 include(cmake/utils.cmake)
 
@@ -18,22 +22,26 @@ else()
     message(FATAL_ERROR  "C++ standard must C++14 or higher")
 endif()
 
-find_package(GTest)
-find_package(Boost)
-if(NOT BOOST_FOUND)
-    message(AUTHOR_WARNING "Not found boost library. Subsequent compilations may fail.")
+# Find third-party library
+find_package(Boost REQUIRED)
+find_package(libssh)
+if(libssh_FOUND)
+    set(THIRDPARTY_LIB ${THIRDPARTY_LIB} ssh)
+    add_definitions(-DELITE_USE_LIB_SSH)
 endif()
 
 configure_file(
-    ${CMAKE_SOURCE_DIR}/include/EliteOptions.hpp.in
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/EliteOptions.hpp.in
     ${PROJECT_BINARY_DIR}/include/Elite/EliteOptions.hpp
 )
 
+# Source file list
 set(
     ELITE_LIB_SOURCE_FILE
     source/Common/Utils.cpp
     source/Common/TcpServer.cpp
     source/Common/EliteException.cpp
+    source/Common/SshUtils.cpp
     source/Primary/PrimaryPort.cpp
     source/Primary/PrimaryPortInterface.cpp
     source/Primary/RobotConfPackage.cpp
@@ -50,6 +58,8 @@ set(
     source/Elite/EliteDriver.cpp
     source/Elite/Log.cpp
     source/Elite/Logger.cpp
+    source/Elite/RemoteUpgrade.cpp
+    source/Elite/ControllerLog.cpp
 )
 
 set(
@@ -63,6 +73,25 @@ set(
     ${PROJECT_SOURCE_DIR}/include/Control
     ${PROJECT_SOURCE_DIR}/include/
     ${PROJECT_BINARY_DIR}/include/
+)
+
+# Head file list
+set(
+    ELITE_HEADER_FILES
+    Elite/DataType.hpp
+    Elite/VersionInfo.hpp
+    Dashboard/DashboardClient.hpp
+    Rtsi/RtsiClientInterface.hpp
+    Rtsi/RtsiIOInterface.hpp
+    Rtsi/RtsiRecipe.hpp
+    Primary/PrimaryPackage.hpp
+    Primary/RobotConfPackage.hpp
+    Primary/PrimaryPortInterface.hpp
+    EliteException.hpp
+    Elite/EliteDriver.hpp
+    Elite/Log.hpp
+    Elite/RemoteUpgrade.hpp
+    Elite/ControllerLog.hpp
 )
 
 # Set output library default name
@@ -111,43 +140,63 @@ target_include_directories(
     PRIVATE
     ${ELITE_LIB_INCLUDE_DIR}
 )
+target_link_libraries(
+    ${PROJECT_NAME}_SHARED
+    PRIVATE
+    ${THIRDPARTY_LIB}
+)
+target_link_libraries(
+    ${PROJECT_NAME}_STATIC
+    PRIVATE
+    ${THIRDPARTY_LIB}
+)
 
 # Copy head file
-file(COPY ${PROJECT_SOURCE_DIR}/include/Elite/DataType.hpp DESTINATION ${PROJECT_BINARY_DIR}/include/Elite)
-file(COPY ${PROJECT_SOURCE_DIR}/include/Elite/VersionInfo.hpp DESTINATION ${PROJECT_BINARY_DIR}/include/Elite)
-file(COPY ${PROJECT_SOURCE_DIR}/include/Dashboard/DashboardClient.hpp DESTINATION ${PROJECT_BINARY_DIR}/include/Elite)
-file(COPY ${PROJECT_SOURCE_DIR}/include/Rtsi/RtsiConstants.hpp DESTINATION ${PROJECT_BINARY_DIR}/include/Elite)
-file(COPY ${PROJECT_SOURCE_DIR}/include/Rtsi/RtsiClient.hpp DESTINATION ${PROJECT_BINARY_DIR}/include/Elite)
-file(COPY ${PROJECT_SOURCE_DIR}/include/Rtsi/RtsiClientInterface.hpp DESTINATION ${PROJECT_BINARY_DIR}/include/Elite)
-file(COPY ${PROJECT_SOURCE_DIR}/include/Rtsi/RtsiIOInterface.hpp DESTINATION ${PROJECT_BINARY_DIR}/include/Elite)
-file(COPY ${PROJECT_SOURCE_DIR}/include/Rtsi/RtsiRecipe.hpp DESTINATION ${PROJECT_BINARY_DIR}/include/Elite)
-file(COPY ${PROJECT_SOURCE_DIR}/include/Primary/PrimaryPackage.hpp DESTINATION ${PROJECT_BINARY_DIR}/include/Elite)
-file(COPY ${PROJECT_SOURCE_DIR}/include/Primary/RobotConfPackage.hpp DESTINATION ${PROJECT_BINARY_DIR}/include/Elite)
-file(COPY ${PROJECT_SOURCE_DIR}/include/Primary/PrimaryPortInterface.hpp DESTINATION ${PROJECT_BINARY_DIR}/include/Elite)
-file(COPY ${PROJECT_SOURCE_DIR}/include/EliteException.hpp DESTINATION ${PROJECT_BINARY_DIR}/include/Elite)
-file(COPY ${PROJECT_SOURCE_DIR}/include/Elite/EliteDriver.hpp DESTINATION ${PROJECT_BINARY_DIR}/include/Elite)
-file(COPY ${PROJECT_SOURCE_DIR}/include/Elite/Log.hpp DESTINATION ${PROJECT_BINARY_DIR}/include/Elite)
+foreach(header ${ELITE_HEADER_FILES})
+    file(COPY ${PROJECT_SOURCE_DIR}/include/${header} 
+         DESTINATION ${PROJECT_BINARY_DIR}/include/Elite)
+endforeach()
+
+# Prepare exporting targets
+add_library(${PROJECT_NAME}::shared ALIAS ${PROJECT_NAME}_SHARED)
+target_include_directories(
+    ${PROJECT_NAME}_SHARED
+    PUBLIC
+    $<BUILD_INTERFACE:${PROJECT_BINARY_DIR}/include>  
+    $<INSTALL_INTERFACE:include>
+)
+add_library(${PROJECT_NAME}::static ALIAS ${PROJECT_NAME}_STATIC)
+target_include_directories(
+    ${PROJECT_NAME}_STATIC
+    PUBLIC
+    $<BUILD_INTERFACE:${PROJECT_BINARY_DIR}/include>  
+    $<INSTALL_INTERFACE:include>
+)
 
 # Is compile examples
-if(ELITE_COMPLIE_EXAMPLES)
+if(ELITE_COMPILE_EXAMPLES)
     message(STATUS "Compile the exmaples")
     add_subdirectory(example ${CMAKE_BINARY_DIR}/example/)
 endif()
 
 # If compile documentation
-if(ELITE_COMPLIE_DOC)
+if(ELITE_COMPILE_DOC)
     message(STATUS "Compile the documentation.")
     add_subdirectory(doc ${CMAKE_BINARY_DIR}/doc/)
 endif()
 
 # If googel test has been foune, compile unit test
-if (GTEST_FOUND)
+if (ELITE_COMPILE_TESTS)
     message(STATUS "Compile the tests")
     add_subdirectory(test ${CMAKE_BINARY_DIR}/test/)
 endif()
 
+# Disable installation if project imported with FetchContent
+string(COMPARE EQUAL "${CMAKE_SOURCE_DIR}" "${CMAKE_CURRENT_SOURCE_DIR}" is_top_level)
+option(ELITE_INSTALL "Include packaging rules" "${is_top_level}")
+
 # On the Linux platform, install binary library files, header files, and CMake configuration files.
-if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+if(CMAKE_SYSTEM_NAME STREQUAL "Linux" AND ELITE_INSTALL)
     include(GNUInstallDirs)
     install(
         TARGETS ${PROJECT_NAME}_SHARED ${PROJECT_NAME}_STATIC
@@ -195,3 +244,4 @@ message(STATUS "CMAKE_C_FLAGS:                      ${CMAKE_C_FLAGS}")
 message(STATUS "CMAKE_CXX_FLAGS:                    ${CMAKE_CXX_FLAGS}")
 message(STATUS "CMAKE_INSTALL_INCLUDEDIR:           ${CMAKE_INSTALL_INCLUDEDIR}")
 message(STATUS "CMAKE_INSTALL_LIBDIR:               ${CMAKE_INSTALL_LIBDIR}")
+message(STATUS "THIRDPARTY_LIB                      ${THIRDPARTY_LIB}")

@@ -40,7 +40,7 @@ public:
             boost::asio::detail::socket_option::boolean<IPPROTO_TCP, TCP_QUICKACK> quickack(true);
             socket_ptr->set_option(quickack);
 #endif
-            boost::asio::ip::tcp::endpoint endpoint(boost::asio::ip::address::from_string(ip), port);
+            boost::asio::ip::tcp::endpoint endpoint(boost::asio::ip::make_address(ip), port);
             socket_ptr->async_connect(endpoint, [&](const boost::system::error_code& error) {
                 if (error) {
                     throw boost::system::system_error(error);
@@ -56,6 +56,7 @@ public:
 };
 
 TEST(TRAJECTORY_INTERFACE, write_point) {
+    TcpServer::start();
     std::unique_ptr<TrajectoryInterface> trajectory_ins = std::make_unique<TrajectoryInterface>(TRAJECTORY_INTERFACE_TEST_PORT);
     std::unique_ptr<TcpClient> client = std::make_unique<TcpClient>();
 
@@ -95,10 +96,11 @@ TEST(TRAJECTORY_INTERFACE, write_point) {
     std::this_thread::sleep_for(50ms);
 
     EXPECT_EQ(motion_result, (TrajectoryMotionResult)send_result);
-
+    TcpServer::stop();
 }
 
 TEST(TRAJECTORY_INTERFACE, disconnect) { 
+    TcpServer::start();
     std::unique_ptr<TrajectoryInterface> trajectory_ins;
 
     trajectory_ins.reset(new TrajectoryInterface(TRAJECTORY_INTERFACE_TEST_PORT));
@@ -116,7 +118,7 @@ TEST(TRAJECTORY_INTERFACE, disconnect) {
     std::this_thread::sleep_for(50ms);
 
     EXPECT_FALSE(trajectory_ins->isRobotConnect());
-
+    TcpServer::stop();
 }
 
 int main(int argc, char** argv) {

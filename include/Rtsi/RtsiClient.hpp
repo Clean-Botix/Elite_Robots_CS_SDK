@@ -146,7 +146,6 @@ private:
     boost::asio::io_context io_context_;
     std::unique_ptr<boost::asio::ip::tcp::socket> socket_ptr_;
     std::unique_ptr<boost::asio::ip::tcp::resolver> resolver_ptr_;
-    std::vector<uint8_t> recv_buffer_;
     
     enum ConnectionState {
         DISCONNECTED,
@@ -182,10 +181,13 @@ private:
     /**
      * @brief Receive socket bytes from RTSI server
      * 
-     * @param timeout_ms timeout, If timeout will close the socket connection
-     * @return int The number of bytes received
+     * @param buff Data buffer
+     * @param size Size of buffer
+     * @param offset Offset of buffer
+     * @param timeout_ms Timeout(ms)
+     * @return int The number of bytes recieved
      */
-    int receiveToBuffer(unsigned timeout_ms = 1000);
+    int receiveSocket(std::vector<uint8_t>& buff, int size, int offset, unsigned timeout_ms = 1000);
 
     /**
      * @brief Loop receive util target package come

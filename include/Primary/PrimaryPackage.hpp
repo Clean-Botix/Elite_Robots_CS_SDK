@@ -30,6 +30,7 @@ private:
     int type_;
     std::mutex cv_mutex_;
     std::condition_variable cv_;
+    bool ready_;
 public:
     PrimaryPackage() = delete;
 
@@ -38,14 +39,14 @@ public:
      * 
      * @param type The sub-package type
      */
-    explicit PrimaryPackage(int type) : type_(type) { }
+    explicit PrimaryPackage(int type) : type_(type), ready_(false) { }
     virtual ~PrimaryPackage() = default;
 
     /**
      * @brief Parser sub-package. Internal use.
      * 
-     * @param len 
-     * @param iter 
+     * @param len The len of sub-package
+     * @param iter Position of the sub-package in the entire package
      */
     ELITE_EXPORT virtual void parser(int len, const std::vector<uint8_t>::const_iterator& iter) = 0;
 
@@ -58,8 +59,7 @@ public:
      */
     bool waitUpdate(int timeout_ms) {
         std::unique_lock<std::mutex> lock(cv_mutex_);
-        std::cv_status sta = cv_.wait_for(lock, std::chrono::milliseconds(timeout_ms));
-        return sta == std::cv_status::no_timeout;
+        return cv_.wait_for(lock, std::chrono::milliseconds(timeout_ms), [&]{return ready_;});
     }
 
     /**
@@ -69,6 +69,7 @@ public:
      */
     void notifyUpated() {
         std::unique_lock<std::mutex> lock(cv_mutex_);
+        ready_ = true;
         cv_.notify_all();
     }
 

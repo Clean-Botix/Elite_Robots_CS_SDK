@@ -3,9 +3,9 @@
  * @author yanxiaojia
  * @brief The data type of sdk
  * @date 2024-08-21
- * 
+ *
  * @copyright Copyright (c) 2024
- * 
+ *
  */
 #ifndef __DATA_TYPE_HPP__
 #define __DATA_TYPE_HPP__
@@ -21,8 +21,7 @@
 #include <boost/variant.hpp>
 #endif
 
-namespace ELITE
-{
+namespace ELITE {
 
 enum class RobotMode : int32_t {
     UNKNOWN = -2,
@@ -55,8 +54,7 @@ enum class JointMode : int32_t {
     MODE_IDLE = 255
 };
 
-
-enum  class SafetyMode : int32_t {
+enum class SafetyMode : int32_t {
     UNKNOWN = -2,
     NORMAL = 1,
     REDUCED = 2,
@@ -106,14 +104,7 @@ enum class ToolDigitalOutputMode : uint8_t {
     SINKING_NPN_MODE = 2
 };
 
-
-enum class TaskStatus{
-    UNKNOWN,
-    PLAYING,
-    PAUSED,
-    STOPPED
-};
-
+enum class TaskStatus { UNKNOWN, PLAYING, PAUSED, STOPPED };
 
 enum class TrajectoryMotionResult : int {
     /// Successful execution
@@ -135,21 +126,30 @@ enum class TrajectoryControlAction : int {
 
 enum class ToolVoltage : int {
     OFF = 0,    // 0V
-    V_12 = 12,   // 12V
-    V_24 = 24    // 24V
+    V_12 = 12,  // 12V
+    V_24 = 24   // 24V
 };
 
 enum class ForceMode : int {
-    /// The force frame is the force reference frame. 
+    /// The force frame is the force reference frame.
     FIX,
-    /// The Y-axis in the force frame points from the TCP 
-    /// origin of the robot to the origin of the force reference frame. 
+    /// The Y-axis in the force frame points from the TCP
+    /// origin of the robot to the origin of the force reference frame.
     POINT,
-    /// The X-axis in the force frame is the projection of the TCP motion direction 
-    /// vector in the X-Y plane belonging to the force reference frame.  
+    /// The X-axis in the force frame is the projection of the TCP motion direction
+    /// vector in the X-Y plane belonging to the force reference frame.
     MOTION,
-    /// The force frame is the TCP frame. 
+    /// The force frame is the TCP frame.
     TCP,
+};
+
+enum class FreedriveAction : int {
+    /// Represents command to stop freedrive mode.
+    FREEDRIVE_END = -1,
+    /// Represents keep running in freedrive mode.
+    FREEDRIVE_NOOP = 0,
+    /// Represents command to start freedrive mode.
+    FREEDRIVE_START = 1
 };
 
 using vector3d_t = std::array<double, 3>;
@@ -157,16 +157,13 @@ using vector6d_t = std::array<double, 6>;
 using vector6int32_t = std::array<int32_t, 6>;
 using vector6uint32_t = std::array<uint32_t, 6>;
 #if (ELITE_SDK_COMPILE_STANDARD >= 17)
-using RtsiTypeVariant = std::variant<bool, uint8_t, uint16_t, uint32_t, uint64_t, int32_t, double, vector3d_t, vector6d_t, vector6int32_t, vector6uint32_t>;
+using RtsiTypeVariant = std::variant<bool, int8_t, uint8_t, int16_t, uint16_t, int32_t, uint32_t, int64_t, uint64_t, double,
+                                     vector3d_t, vector6d_t, vector6int32_t, vector6uint32_t>;
 #elif (ELITE_SDK_COMPILE_STANDARD == 14)
-using RtsiTypeVariant = boost::variant<bool, uint8_t, uint16_t, uint32_t, uint64_t, int32_t, double, vector3d_t, vector6d_t, vector6int32_t, vector6uint32_t>;
+using RtsiTypeVariant = boost::variant<bool, int8_t, uint8_t, int16_t, uint16_t, int32_t, uint32_t, int64_t, uint64_t, double,
+                                       vector3d_t, vector6d_t, vector6int32_t, vector6uint32_t>;
 #endif
 
-
-} // namespace ELITE
-
-
-
-
+}  // namespace ELITE
 
 #endif

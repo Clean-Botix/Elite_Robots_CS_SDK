@@ -5,6 +5,7 @@
 
 #include "ReverseInterface.hpp"
 #include "ControlCommon.hpp"
+#include "TcpServer.hpp"
 
 #define REVERSE_INTERFACE_TEST_PORT 50002
 
@@ -38,7 +39,7 @@ public:
             boost::asio::detail::socket_option::boolean<IPPROTO_TCP, TCP_QUICKACK> quickack(true);
             socket_ptr->set_option(quickack);
 #endif
-            boost::asio::ip::tcp::endpoint endpoint(boost::asio::ip::address::from_string(ip), port);
+            boost::asio::ip::tcp::endpoint endpoint(boost::asio::ip::make_address(ip), port);
             socket_ptr->async_connect(endpoint, [&](const boost::system::error_code& error) {
                 if (error) {
                     throw boost::system::system_error(error);
@@ -54,6 +55,7 @@ public:
 };
 
 TEST(REVERSE_INTERFACE, trajectory_control_action) {
+    TcpServer::start();
     std::unique_ptr<ReverseInterface> reverse_ins = std::make_unique<ReverseInterface>(REVERSE_INTERFACE_TEST_PORT);
     std::unique_ptr<TcpClient> client = std::make_unique<TcpClient>();
 
@@ -78,10 +80,11 @@ TEST(REVERSE_INTERFACE, trajectory_control_action) {
     EXPECT_EQ(::htonl(buffer[7]), (int)ControlMode::MODE_TRAJECTORY);
 
     client->socket_ptr->close();
-
+    TcpServer::stop();
 }
 
 TEST(REVERSE_INTERFACE, joint_idle_command) {
+    TcpServer::start();
     std::unique_ptr<ReverseInterface> reverse_ins = std::make_unique<ReverseInterface>(REVERSE_INTERFACE_TEST_PORT);
     std::unique_ptr<TcpClient> client = std::make_unique<TcpClient>();
 
@@ -114,10 +117,12 @@ TEST(REVERSE_INTERFACE, joint_idle_command) {
     EXPECT_EQ(::htonl(buffer[6]), 6 * CONTROL::POS_ZOOM_RATIO);
     // control mode
     EXPECT_EQ(::htonl(buffer[7]), (int)ControlMode::MODE_IDLE);
+    TcpServer::stop();
 
 }
 
 TEST(REVERSE_INTERFACE, joint_command_send_nullptr) {
+    TcpServer::start();
     std::unique_ptr<ReverseInterface> reverse_ins = std::make_unique<ReverseInterface>(REVERSE_INTERFACE_TEST_PORT);
     std::unique_ptr<TcpClient> client = std::make_unique<TcpClient>();
 
@@ -125,12 +130,13 @@ TEST(REVERSE_INTERFACE, joint_command_send_nullptr) {
 
     std::this_thread::sleep_for(100ms);
 
-    EXPECT_FALSE(reverse_ins->writeJointCommand(nullptr, ControlMode::MODE_IDLE, 100));
-
+    EXPECT_TRUE(reverse_ins->writeJointCommand(nullptr, ControlMode::MODE_IDLE, 100));
+    TcpServer::stop();
 }
 
 
 TEST(REVERSE_INTERFACE, disconnect) { 
+    TcpServer::start();
     std::unique_ptr<ReverseInterface> reverse_ins;
 
     reverse_ins.reset(new ReverseInterface(REVERSE_INTERFACE_TEST_PORT));
@@ -149,6 +155,7 @@ TEST(REVERSE_INTERFACE, disconnect) {
 
     EXPECT_FALSE(reverse_ins->isRobotConnect());
 
+    TcpServer::stop();
 }
 
 int main(int argc, char** argv) {

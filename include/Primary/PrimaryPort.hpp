@@ -1,4 +1,4 @@
-#ifndef __ELITE__PRIMARY_PORT_HPP__
+﻿#ifndef __ELITE__PRIMARY_PORT_HPP__
 #define __ELITE__PRIMARY_PORT_HPP__
 
 #include "PrimaryPackage.hpp"
@@ -27,7 +27,6 @@ private:
     std::mutex socket_mutex_;
     boost::asio::io_context io_context_;
     std::unique_ptr<boost::asio::ip::tcp::socket> socket_ptr_;
-    std::unique_ptr<boost::asio::ip::tcp::resolver> resolver_ptr_;
     
     // The buffer of package head
     std::vector<uint8_t> message_head_;
@@ -44,13 +43,13 @@ private:
      * @brief The background thread.
      *  Receive and parser package.
      */
-    void socketAsyncLoop();
+    void socketAsyncLoop(const std::string& ip, int port);
 
     /**
-     * @brief Receive and parser package head.
+     * @brief Receive and parser package.
      * 
      */
-    void parserMessageHead();
+    bool parserMessage();
 
     /**
      * @brief Receive and parser package body.
@@ -58,7 +57,23 @@ private:
      * @param type 
      * @param len 
      */
-    void parserMessageBody(int type, int len);
+    bool parserMessageBody(int type, int package_len);
+
+    /**
+     * @brief Connect to robot primary port.
+     * 
+     * @param ip The robot ip
+     * @param port The port(30001 or 30002)
+     * @return true 
+     * @return false 
+     */
+    bool socketConnect(const std::string& ip, int port);
+
+    /**
+     * @brief Close connection socket
+     * 
+     */
+    void socketDisconnect();
 
 public:
     PrimaryPort();
@@ -71,12 +86,16 @@ public:
      * @param port The port(30001 or 30002)
      * @return true success
      * @return false fail
+     * @note 
+     *      1. Warning: Repeated calls to this function without intermediate disconnect() will force-close the active connection.
+     *      2. Usage constraint: Call rate must be ≤ 2Hz (once per 500ms minimum interval).
      */
     bool connect(const std::string& ip, int port);
 
     /**
      * @brief Disconnect socket.
      *  And wait for the background thread to finish.
+     * @note After calling this function, a delay of around 500ms should be added prior to calling connect().
      */
     void disconnect();
 
@@ -100,11 +119,11 @@ public:
     bool getPackage(std::shared_ptr<PrimaryPackage> pkg, int timeout_ms);
 
     /**
-     * @brief Close and reset socket
+     * @brief Get the local IP
      * 
+     * @return std::string Local IP. If empty, connection had some errors.
      */
-    void socketClose();
-
+    std::string getLocalIP();
 };
 
 } // namespace ELITE

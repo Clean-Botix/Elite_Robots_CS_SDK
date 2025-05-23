@@ -6,6 +6,7 @@
 #include <iostream>
 
 using namespace std::chrono;
+using namespace ELITE;
 
 #define SERVER_TEST_PORT (50001)
 
@@ -36,7 +37,7 @@ public:
             boost::asio::detail::socket_option::boolean<IPPROTO_TCP, TCP_QUICKACK> quickack(true);
             socket_ptr->set_option(quickack);
 #endif
-            boost::asio::ip::tcp::endpoint endpoint(boost::asio::ip::address::from_string(ip), port);
+            boost::asio::ip::tcp::endpoint endpoint(boost::asio::ip::make_address(ip), port);
             socket_ptr->async_connect(endpoint, [&](const boost::system::error_code& error) {
                 if (error) {
                     throw boost::system::system_error(error);
@@ -53,139 +54,150 @@ public:
 
 
 
-TEST(TCP_SERVER, TCP_SERVER_TEST) {  
-    ELITE::TcpServer server(SERVER_TEST_PORT);
-    static uint8_t read_buff[4096];
-    int send_data = 1234;
-
-    std::shared_ptr<boost::asio::ip::tcp::socket> client_socket;
-    server.setConnectCallback([&](std::shared_ptr<boost::asio::ip::tcp::socket> client) {
-        client_socket = client;
-    });
-    
+TEST(TCP_SERVER, TCP_SERVER_TEST) {
+    TcpServer::start();
+    std::shared_ptr<TcpServer> server = std::make_shared<TcpServer>(SERVER_TEST_PORT, 4);
+    server->startListen();
+    // Wait listen
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
     TcpClient client("127.0.0.1", SERVER_TEST_PORT);
-
+    // Wait connection
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
-    
-    EXPECT_TRUE(client_socket != nullptr);
-    if (client_socket == nullptr) {
-        return;
-    }
 
-    client_socket->async_read_some(boost::asio::buffer(read_buff, sizeof(read_buff)), [&](const boost::system::error_code &ec, std::size_t nb) {
-        if (ec) {
-            ASSERT_TRUE(false);
-        } else {
-            ASSERT_EQ(*(int*)read_buff, send_data);
-        }
+    EXPECT_TRUE(server->isClientConnected());
+
+    int send_data = 12345;
+    bool receive_flag = false;
+    server->setReceiveCallback([&](const uint8_t data[], int nb) {
+        receive_flag = true;
+        EXPECT_EQ(nb, 4);
+        EXPECT_EQ(*(int*)data, send_data);
     });
 
     client.socket_ptr->send(boost::asio::buffer(&send_data, sizeof(send_data)));
+    // Wait send
     std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    
+    EXPECT_TRUE(receive_flag);
+    // Clear flag
+    receive_flag = false;
 
-    client.socket_ptr->close();
-    
-    client_socket->async_read_some(boost::asio::buffer(read_buff, sizeof(read_buff)), [&](const boost::system::error_code &ec, std::size_t nb) {
-        if (!ec) {
-            ASSERT_TRUE(false);
-        }
-        client_socket.reset();
-    });
-    
-    std::this_thread::sleep_for(std::chrono::milliseconds(10));
-    
-    ASSERT_FALSE(client_socket);
+    TcpServer::stop();
 }
 
 TEST(TCP_SERVER, TCP_SERVER_MULIT_CONNECT) {
-    ELITE::TcpServer server(SERVER_TEST_PORT);
+    const std::string client_send_string = "client_send_string\n";
+    TcpServer::start();
+    std::shared_ptr<TcpServer> server = std::make_shared<TcpServer>(SERVER_TEST_PORT, client_send_string.length());
+    server->startListen();
+    // Wait listen
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    
     TcpClient client1;
     TcpClient client2;
-    const std::string client_send_string = "client_send_string\n";
-
-    std::shared_ptr<boost::asio::ip::tcp::socket> server_client_socket;
-    
-    server.setConnectCallback([&](std::shared_ptr<boost::asio::ip::tcp::socket> client) {
-        if (server_client_socket) {
-            server_client_socket.reset();
-        }
-        server_client_socket = client;
-    });
-
-    // Wait for TCPServer thread run
-    std::this_thread::sleep_for(std::chrono::milliseconds(50));
 
     client1.connect("127.0.0.1", SERVER_TEST_PORT);
+    // Wait connected
     std::this_thread::sleep_for(std::chrono::milliseconds(50));
 
-    ASSERT_TRUE(server_client_socket != nullptr);
-    if (server_client_socket == nullptr) {
-        return;
-    }
-    boost::asio::ip::tcp::socket* server_client_socket_client1 = server_client_socket.get();
-    
-    std::string recv_buffer;
-    int read_len = 0;
-    boost::asio::async_read_until(
-        *server_client_socket, 
-        boost::asio::dynamic_buffer(recv_buffer), 
-        '\n', 
-        [&](boost::system::error_code ec, std::size_t len){
-            if(!ec) {
-                read_len += len;
-            }
-        }
-    );
-    ASSERT_EQ(client1.socket_ptr->write_some(boost::asio::buffer(client_send_string)), client_send_string.length());
+    EXPECT_TRUE(server->isClientConnected());
+    bool receive_flag = false;
+    server->setReceiveCallback([&](const uint8_t data[], int nb) {
+        receive_flag = true;
+        EXPECT_EQ(nb, client_send_string.length());
+
+        std::string str((const char *)data);
+        EXPECT_EQ(str, client_send_string);
+    });
+
+    EXPECT_EQ(client1.socket_ptr->write_some(boost::asio::buffer(client_send_string)), client_send_string.length());
     // Wait for recv
-    std::this_thread::sleep_for(std::chrono::milliseconds(50));
-    ASSERT_EQ(read_len, client_send_string.length());
-    ASSERT_EQ(recv_buffer.length(), client_send_string.length());
-    ASSERT_EQ(recv_buffer, client_send_string);
-
-    recv_buffer.clear();
-
-    // Add new task
-    boost::asio::async_read_until(
-        *server_client_socket, 
-        boost::asio::dynamic_buffer(recv_buffer), 
-        '\n', 
-        [&](boost::system::error_code ec, std::size_t len){
-            if (!ec) {
-                // When new connection come in, old will be shutdown. So should't execute fllow command.
-                ASSERT_TRUE(false);
-            }
-        }
-    );
-    std::this_thread::sleep_for(std::chrono::milliseconds(50));
+    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    
+    EXPECT_TRUE(receive_flag);
+    // Clear flag
+    receive_flag = false;
     
     // New connection
     client2.connect("127.0.0.1", SERVER_TEST_PORT);
-    std::this_thread::sleep_for(std::chrono::milliseconds(50));
-    ASSERT_TRUE(server_client_socket != nullptr);
-    ASSERT_TRUE(server_client_socket.get() != server_client_socket_client1);
-    read_len = 0;
-    boost::asio::async_read_until(
-        *server_client_socket, 
-        boost::asio::dynamic_buffer(recv_buffer), 
-        '\n', 
-        [&](boost::system::error_code ec, std::size_t len){
-            if(!ec) {
-                read_len += len;
-            }
-        }
-    );
-    ASSERT_EQ(client2.socket_ptr->write_some(boost::asio::buffer(client_send_string)), client_send_string.length());
+
+    // Wait connected
+    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    EXPECT_TRUE(server->isClientConnected());
+
+    EXPECT_EQ(client2.socket_ptr->write_some(boost::asio::buffer(client_send_string)), client_send_string.length());
     // Wait for recv
-    std::this_thread::sleep_for(std::chrono::milliseconds(50));
-    ASSERT_EQ(read_len, client_send_string.length());
-    ASSERT_EQ(recv_buffer.length(), client_send_string.length());
-    ASSERT_EQ(recv_buffer, client_send_string);
+    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+
+    EXPECT_TRUE(receive_flag);
+    // Clear flag
+    receive_flag = false;
 
     client1.socket_ptr->close();
     client2.socket_ptr->close();
+
+    // Wait close arrive
+    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+
+    EXPECT_FALSE(server->isClientConnected());
+
+    // Wait close
+    std::this_thread::sleep_for(std::chrono::milliseconds(50));
+
+    // After client close, reconnect
+    client1.connect("127.0.0.1", SERVER_TEST_PORT);
+    // Wait connected
+    std::this_thread::sleep_for(std::chrono::milliseconds(50));
+
+    ASSERT_EQ(client1.socket_ptr->write_some(boost::asio::buffer(client_send_string)), client_send_string.length());
+    // Wait for recv
+    std::this_thread::sleep_for(std::chrono::milliseconds(50));
+    // Stop TCP context
+    TcpServer::stop();
+}
+
+TEST(TCP_SERVER, TCP_MULIT_SERVERS) {
+    const std::string client_send_string = "client_send_string\n";   
+
+    TcpServer::start();
+
+    std::vector<std::shared_ptr<TcpServer>> servers;
+    for (size_t i = 0; i < 5; i++) {
+        servers.push_back(std::make_shared<TcpServer>(SERVER_TEST_PORT + i, client_send_string.length()));
+        servers[i]->startListen();
+    }
+    // Wait listen
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+
+    std::vector<std::unique_ptr<TcpClient>> clients;
+    for (size_t i = 0; i < 5; i++) {
+        clients.push_back(std::make_unique<TcpClient>());
+        clients[i]->connect("127.0.0.1", SERVER_TEST_PORT + i);
+    }
+    // Wait connected
+    std::this_thread::sleep_for(std::chrono::milliseconds(50));
+
+    for (size_t i = 0; i < 5; i++) {
+        ASSERT_TRUE(servers[i]->isClientConnected());
+
+        servers[i]->setReceiveCallback([&](const uint8_t data[], int nb) {
+            EXPECT_EQ(nb, client_send_string.length());
+    
+            std::string str((const char *)data);
+            EXPECT_EQ(str, client_send_string);
+        });
+
+        ASSERT_EQ(clients[i]->socket_ptr->write_some(boost::asio::buffer(client_send_string)), client_send_string.length());
+    }
+    // Wait for recv
+    std::this_thread::sleep_for(std::chrono::milliseconds(200));
+    
+    for (size_t i = 0; i < 5; i++) {
+        clients[i]->socket_ptr->close();
+    }
+
+    TcpServer::stop();
 }
 
 

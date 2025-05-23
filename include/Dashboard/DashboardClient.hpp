@@ -1,44 +1,40 @@
 #ifndef __DASHBOARDCLIENT_HPP__
 #define __DASHBOARDCLIENT_HPP__
 
-#include <Elite/EliteOptions.hpp>
-#include <Elite/EliteException.hpp>
 #include <Elite/DataType.hpp>
+#include <Elite/EliteException.hpp>
+#include <Elite/EliteOptions.hpp>
 
+#include <chrono>
 #include <memory>
 #include <string>
-#include <chrono>
-
 
 namespace ELITE {
 
-static constexpr int DEFAULT_DASHBOARD_PORT = 29999;
-
-class DashboardClient
-{
-public:
+class DashboardClient {
+   public:
     ELITE_EXPORT explicit DashboardClient();
     ELITE_EXPORT virtual ~DashboardClient();
 
     /**
      * @brief Connect to dashboard server
-     * 
+     *
      * @param ip The IP of dashboard server
      * @param port The IP of dashboard server port
      * @return true connected success
      * @return false connected fail
      */
-    ELITE_EXPORT bool connect(const std::string& ip, int port = DEFAULT_DASHBOARD_PORT);
+    ELITE_EXPORT bool connect(const std::string& ip, int port = 29999);
 
     /**
-     * @brief Disconnect 
-     * 
+     * @brief Disconnect
+     *
      */
     ELITE_EXPORT void disconnect();
 
     /**
      * @brief Brake release
-     * 
+     *
      * @return true success
      * @return false fail
      */
@@ -46,24 +42,24 @@ public:
 
     /**
      * @brief Close safety dialog
-     * 
-     * @return true success 
+     *
+     * @return true success
      * @return false fail
      */
     ELITE_EXPORT bool closeSafetyDialog();
 
     /**
      * @brief The echo command is used to check the connection status with the dashboard shell server
-     * 
-     * @return true Robot response success 
+     *
+     * @return true Robot response success
      */
     ELITE_EXPORT bool echo();
 
     /**
      * @brief Get help string
-     * 
+     *
      * @param cmd The command need help
-     * @return std::string The help string of command 
+     * @return std::string The help string of command
      */
     ELITE_EXPORT std::string help(const std::string& cmd);
 
@@ -72,8 +68,8 @@ public:
      * @verbatim
      *  If message inclue '\n' or '\r', will be replace with "\\n" and "\\r"
      * @endverbatim
-     * 
-     * @param message Log content 
+     *
+     * @param message Log content
      * @return true success
      * @return false fail
      */
@@ -81,11 +77,11 @@ public:
 
     /**
      * @brief Pop up a message box that displays the given text or closes the message box that was recently ordered by popup
-     * 
-     * @param arg 
+     *
+     * @param arg
      *      "-c": close message box
      *      "-s": pop up message box
-     * @param message 
+     * @param message
      * @return true success
      * @return false fail
      */
@@ -93,208 +89,218 @@ public:
 
     /**
      * @brief Quit dashboard and disconnect
-     * 
+     *
      */
     ELITE_EXPORT void quit();
 
     /**
      * @brief Reboot robot and disconnect
-     * 
+     *
      */
     ELITE_EXPORT void reboot();
 
     /**
      * @brief Get robot type
-     * 
-     * @return string Robot type 
+     *
+     * @return string Robot type
      */
     ELITE_EXPORT std::string robot();
 
     /**
      * @brief Robot power-on
-     * 
-     * @return true success 
+     *
+     * @return true success
      * @return false fail
      */
     ELITE_EXPORT bool powerOn();
 
     /**
      * @brief Robot power-off
-     * 
-     * @return true success 
+     *
+     * @return true success
      * @return false fail
      */
     ELITE_EXPORT bool powerOff();
 
     /**
      * @brief Robot shutdown and disconnect
-     * 
-     * @return true success 
+     *
+     * @return true success
      * @return false fail
      */
     ELITE_EXPORT void shutdown();
 
     /**
-     * @brief Gets the robot speed scaling percentage 
-     * 
-     * @return int Robot speed scaling percentage  
+     * @brief Gets the robot speed scaling percentage
+     *
+     * @return int Robot speed scaling percentage
      */
     ELITE_EXPORT int speedScaling();
 
     /**
      * @brief Get robot mode
-     * 
-     * @return RobotMode robot mode 
+     *
+     * @return RobotMode robot mode
      */
     ELITE_EXPORT RobotMode robotMode();
 
     /**
      * @brief Get safety mode
-     * 
-     * @return SafetyMode safety mode 
+     *
+     * @return SafetyMode safety mode
      */
     ELITE_EXPORT SafetyMode safetyMode();
 
     /**
+     * @brief Restart safety system
+     *
+     * @return true success
+     * @return false fail
+     */
+    ELITE_EXPORT bool safetySystemRestart();
+
+    /**
      * @brief Get task status
-     * 
+     *
      * @return TaskStatus task status
      */
     ELITE_EXPORT TaskStatus runningStatus();
 
     /**
      * @brief Unlock robot protective stop
-     * 
-     * @return true success 
+     *
+     * @return true success
      * @return false fail
      */
     ELITE_EXPORT bool unlockProtectiveStop();
 
     /**
      * @brief Query all or given command usage of the dashboard shell
-     * 
-     * @param cmd Command 
+     *
+     * @param cmd Command
      * @return string Command usage
      */
     ELITE_EXPORT std::string usage(const std::string& cmd);
 
     /**
      * @brief Get dashboard version infomation
-     * 
-     * @return string Dashboard version infomation 
+     *
+     * @return string Dashboard version infomation
      */
     ELITE_EXPORT std::string version();
 
     /**
      * @brief Load robot configuration
-     * 
-     * @param path 
-     * @return ELITE_EXPORT 
+     *
+     * @param path
+     * @return ELITE_EXPORT
      */
     ELITE_EXPORT bool loadConfiguration(const std::string& path);
 
     /**
      * @brief Get current configuration path
-     * 
-     * @return string The path of configuration 
+     *
+     * @return string The path of configuration
      */
     ELITE_EXPORT std::string configurationPath();
 
     /**
      * @brief Configuration is modify
-     * 
-     * @return true modified 
+     *
+     * @return true modified
      */
     ELITE_EXPORT bool isConfigurationModify();
 
     /**
      * @brief Play program
-     * 
-     * @return true success 
+     *
+     * @return true success
      * @return false fail
      */
     ELITE_EXPORT bool playProgram();
-    
-     /**
+
+    /**
      * @brief Pause program
-     * 
-     * @return true success 
+     *
+     * @return true success
      * @return false fail
      */
     ELITE_EXPORT bool pauseProgram();
 
-     /**
+    /**
      * @brief Stop program
-     * 
-     * @return true success 
+     *
+     * @return true success
      * @return false fail
      */
     ELITE_EXPORT bool stopProgram();
 
     /**
      * @brief Set the speed scaling
-     * 
-     * @param scaling 
-     * @return true success 
+     *
+     * @param scaling
+     * @return true success
      * @return false fail
      */
     ELITE_EXPORT bool setSpeedScaling(int scaling);
 
     /**
      * @brief Get the current task path
-     * 
-     * @return string task relative path 
+     *
+     * @return string task relative path
      */
     ELITE_EXPORT std::string getTaskPath();
 
     /**
      * @brief Load task
-     * 
+     *
      * @param path task path
-     * @return true success 
+     * @return true success
      * @return false fail
      */
     ELITE_EXPORT bool loadTask(const std::string& path);
 
     /**
      * @brief Get the task status
-     * 
-     * @return TaskStatus 
+     *
+     * @return TaskStatus
      */
     ELITE_EXPORT TaskStatus getTaskStatus();
 
     /**
      * @brief Is task running
-     * 
-     * @return true running 
+     *
+     * @return true running
      */
     ELITE_EXPORT bool taskIsRunning();
 
     /**
      * @brief Task save status
-     * 
-     * @return true saved 
+     *
+     * @return true saved
      */
     ELITE_EXPORT bool isTaskSaved();
-private:
+
+    /**
+     * @brief Send a dashboard command and receive a response.
+     *
+     * @param cmd Dashboard command
+     * @return std::string Response
+     */
+    ELITE_EXPORT std::string sendAndReceive(const std::string& cmd);
+
+   private:
     class Impl;
     std::unique_ptr<Impl> impl_;
-
-    enum ConnectionState {
-        DISCONNECTED,
-        CONNECTED
-    };
-    
 
     std::string asyncReadLine(unsigned timeout_ms = 10000);
     void sendCommand(const std::string& cmd);
 
     std::string sendAndRequest(const std::string& cmd, const std::string& expected = "");
-    bool waitForReply(const std::string& cmd, const std::string& expected, const std::chrono::duration<double> timeout = std::chrono::seconds(30));
-
+    bool waitForReply(const std::string& cmd, const std::string& expected,
+                      const std::chrono::duration<double> timeout = std::chrono::seconds(30));
 };
 
-
-}
+}  // namespace ELITE
 
 #endif

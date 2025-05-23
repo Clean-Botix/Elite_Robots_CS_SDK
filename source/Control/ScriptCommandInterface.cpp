@@ -5,64 +5,21 @@
 namespace ELITE
 {
 
-ScriptCommandInterface::ScriptCommandInterface(int port) {
-    server_.reset(new TcpServer(port));
-
-    server_->setConnectCallback([&](std::shared_ptr<boost::asio::ip::tcp::socket> client){
-        {
-            std::lock_guard<std::mutex> lock(client_mutex_);
-            if (client_ && client_->is_open()) {
-                ELITE_LOG_INFO("Script command has new connection, previous connection will be dropped.");
-                server_->releaseClient(client_);
-            }
-            ELITE_LOG_INFO("Script command accept new connection.");
-            client_ = client;
-        }
-        asyncRead();
-    });
+ScriptCommandInterface::ScriptCommandInterface(int port) : ReversePort(port, 4) {
+    server_->startListen();
 }
 
 ScriptCommandInterface::~ScriptCommandInterface() {
 
 }
 
-void ScriptCommandInterface::asyncRead() {
-    std::lock_guard<std::mutex> lock(client_mutex_);
-    if (!client_) {
-        return;
-    }
-    if (!client_->is_open()) {
-        client_.reset();
-        return;
-    }
-    std::shared_ptr<int> no_use;
-    no_use.reset(new int);
-    client_->async_read_some(boost::asio::buffer(no_use.get(), sizeof(int)), [&, no_use](boost::system::error_code ec, std::size_t len){
-        if (len <= 0 || ec) {
-            ELITE_LOG_INFO("Connection to script command interface dropped: %s", boost::system::system_error(ec).what());
-            server_->releaseClient(client_);
-            return;
-        } else {
-            asyncRead();
-        }
-    });
-}
-
 bool ScriptCommandInterface::zeroFTSensor() {
-    std::lock_guard<std::mutex> lock(client_mutex_);
-    if (!client_) {
-        return false;
-    }
     int32_t buffer[SCRIPT_COMMAND_DATA_SIZE] = {0};
     buffer[0] = htonl(static_cast<int32_t>(Cmd::ZERO_FTSENSOR));
     return write(buffer, sizeof(buffer)) > 0;
 }
 
 bool ScriptCommandInterface::setPayload(double mass, const vector3d_t& cog) {
-    std::lock_guard<std::mutex> lock(client_mutex_);
-    if (!client_) {
-        return false;
-    }
     int32_t buffer[SCRIPT_COMMAND_DATA_SIZE] = {0};
     buffer[0] = htonl(static_cast<int32_t>(Cmd::SET_PAYLOAD));
     buffer[1] = htonl(static_cast<int32_t>((mass * CONTROL::COMMON_ZOOM_RATIO)));
@@ -73,10 +30,6 @@ bool ScriptCommandInterface::setPayload(double mass, const vector3d_t& cog) {
 }
 
 bool ScriptCommandInterface::setToolVoltage(const ToolVoltage& vol) {
-    std::lock_guard<std::mutex> lock(client_mutex_);
-    if (!client_) {
-        return false;
-    }
     int32_t buffer[SCRIPT_COMMAND_DATA_SIZE] = {0};
     buffer[0] = htonl(static_cast<int32_t>(Cmd::SET_TOOL_VOLTAGE));
     buffer[1] = htonl(static_cast<int32_t>(vol) * CONTROL::COMMON_ZOOM_RATIO);
@@ -88,11 +41,6 @@ bool ScriptCommandInterface::startForceMode(const vector6d_t& task_frame,
                                                  const vector6d_t& wrench, 
                                                  const ForceMode& mode, 
                                                  const vector6d_t& limits) {
-
-    std::lock_guard<std::mutex> lock(client_mutex_);
-    if (!client_) {
-        return false;
-    }
     int32_t buffer[SCRIPT_COMMAND_DATA_SIZE] = {0};
     buffer[0] = htonl(static_cast<int32_t>(Cmd::START_FORCE_MODE));
     int32_t* bp = &buffer[1];
@@ -118,31 +66,9 @@ bool ScriptCommandInterface::startForceMode(const vector6d_t& task_frame,
 }
 
 bool ScriptCommandInterface::endForceMode() {
-    std::lock_guard<std::mutex> lock(client_mutex_);
-    if (!client_) {
-        return false;
-    }
     int32_t buffer[SCRIPT_COMMAND_DATA_SIZE] = {0};
     buffer[0] = htonl(static_cast<int32_t>(Cmd::END_FORCE_MODE));
     return write(buffer, sizeof(buffer)) > 0;
-}
-
-int ScriptCommandInterface::write(int32_t buffer[], int size) {
-    try {
-        return client_->write_some(boost::asio::buffer(buffer, size));
-    } catch(const boost::system::system_error &error) {
-        server_->releaseClient(client_);
-        return -1;
-    }
-}
-
-bool ScriptCommandInterface::isRobotConnect() {
-    std::lock_guard<std::mutex> lock(client_mutex_);
-    if (client_) {
-        return client_->is_open();
-    } else {
-        return false;
-    }
 }
 
 } // namespace ELITE

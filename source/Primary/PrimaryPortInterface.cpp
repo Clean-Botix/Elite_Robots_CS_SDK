@@ -34,7 +34,9 @@ bool PrimaryPortInterface::getPackage(std::shared_ptr<PrimaryPackage> pkg, int t
     return impl_->primary_.getPackage(pkg, timeout_ms);
 }
 
-
+std::string PrimaryPortInterface::getLocalIP() {
+    return impl_->primary_.getLocalIP();
+}
 
 } // namespace ELITE
 

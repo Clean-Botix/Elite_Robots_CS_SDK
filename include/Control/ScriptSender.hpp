@@ -10,15 +10,15 @@
 namespace ELITE
 {
 
-class ScriptSender {
+class ScriptSender : protected TcpServer {
 private:
     const std::string PROGRAM_REQUEST_ = std::string("request_program");
-    std::unique_ptr<TcpServer> server_;
     const std::string& program_;
-    std::shared_ptr<boost::asio::ip::tcp::socket> client_;
     boost::asio::streambuf recv_request_buffer_;
 
-    void responseRequest();
+    void responseRequest(std::shared_ptr<boost::asio::ip::tcp::socket> sock);
+
+    virtual void doAccept() override;
 
 public:
     ScriptSender(int port, const std::string& program);

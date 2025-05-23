@@ -3,6 +3,7 @@
 
 #include "TcpServer.hpp"
 #include "DataType.hpp"
+#include "ReversePort.hpp"
 #include <memory>
 #include <functional>
 
@@ -16,8 +17,7 @@ enum class TrajectoryMotionType : int
     SPLINE = 2      // spline
 };
 
-class TrajectoryInterface
-{
+class TrajectoryInterface : public ReversePort {
 public:
     static const int TRAJECTORY_MESSAGE_LEN = 21;
 
@@ -56,23 +56,8 @@ public:
      */
     bool writeTrajectoryPoint(const vector6d_t& positions, float time, float blend_radius, bool cartesian);
 
-    /**
-     * @brief Is robot connect to server.
-     * 
-     * @return true connected
-     * @return false don't
-     */
-    bool isRobotConnect();
-
 private:
-    std::unique_ptr<TcpServer> server_;
-    std::shared_ptr<boost::asio::ip::tcp::socket> client_;
     std::function<void(TrajectoryMotionResult)> motion_result_func_;
-    std::mutex client_mutex_;
-    TrajectoryMotionResult motion_result_;
-    
-    int write(int32_t buffer[], int size);
-    void receiveResult();
 };
 
 

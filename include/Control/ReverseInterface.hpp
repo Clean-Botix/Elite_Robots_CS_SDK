@@ -4,6 +4,7 @@
 #include "TcpServer.hpp"
 #include "ControlMode.hpp"
 #include "DataType.hpp"
+#include "ReversePort.hpp"
 
 #include <boost/asio.hpp>
 #include <mutex>
@@ -17,27 +18,7 @@ namespace ELITE
  * 
  * 
  */
-class ReverseInterface
-{
-private:
-    int port_;
-    std::unique_ptr<TcpServer> server_;
-    std::shared_ptr<boost::asio::ip::tcp::socket> client_;
-    std::mutex client_mutex_;
-
-    /**
-     * @brief Not real read data. Check connection state.
-     * 
-     */
-    void asyncRead();
-
-    /**
-     * @brief Write buffer to socket.
-     * 
-     * @return int data
-     */
-    int write(int32_t buffer[], int size);
-
+class ReverseInterface : public ReversePort {
 public:
     static const int REVERSE_DATA_SIZE = 8;
 
@@ -80,21 +61,22 @@ public:
     bool writeTrajectoryControlAction(TrajectoryControlAction action, const int point_number, int timeout_ms);
 
     /**
+     * @brief Writes a freedrive mode control command to the robot
+     * 
+     * @param action Freedrive mode action assigned to this command. 
+     * @param timeout_ms The read timeout configuration for the reverse socket running in the external control script on the robot.
+     * @return true success
+     * @return false fail
+     */
+    bool writeFreedrive(FreedriveAction action, int timeout_ms);
+
+    /**
      * @brief Finish external control script.
      * 
      * @return true success
      * @return false fail
      */
     bool stopControl();
-
-    /**
-     * @brief Is robot connect to server.
-     * 
-     * @return true connected
-     * @return false don't
-     */
-    bool isRobotConnect();
-
 };
 
 

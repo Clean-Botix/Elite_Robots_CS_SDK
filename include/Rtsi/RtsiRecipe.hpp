@@ -87,14 +87,14 @@ public:
      * 
      * @return const std::vector<std::string>& The list of variable names
      */
-    const std::vector<std::string>& getRecipe() const { return recipe_list_; }
+    ELITE_EXPORT const std::vector<std::string>& getRecipe() const { return recipe_list_; }
 
     /**
      * @brief Get the recipe ID, range 1 ~ 254
      * 
      * @return int The recipe ID
      */
-    int getID() const { return recipe_id_; }
+    ELITE_EXPORT int getID() const { return recipe_id_; }
 
 protected:
     RtsiRecipe() = default;

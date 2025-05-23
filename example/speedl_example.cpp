@@ -1,7 +1,7 @@
+#include <Elite/DashboardClient.hpp>
+#include <Elite/DataType.hpp>
 #include <Elite/EliteDriver.hpp>
 #include <Elite/RtsiIOInterface.hpp>
-#include <Elite/DataType.hpp>
-#include <Elite/DashboardClient.hpp>
 
 #include <iostream>
 #include <memory>
@@ -12,19 +12,30 @@ static std::unique_ptr<EliteDriver> s_driver;
 static std::unique_ptr<DashboardClient> s_dashboard;
 
 int main(int argc, char** argv) {
-    if (argc < 3) {
-        std::cout << "Must provide robot ip or local ip. Command like: ./speedl_example 192.168.1.250 192.168.1.251" << std::endl;
+    if (argc < 2) {
+        std::cout << "Must provide robot ip or local ip. Command like: \"./speedl_example robot_ip\" or \"./speedl_example "
+                     "robot_ip local_ip\""
+                  << std::endl;
         return 1;
     }
-    s_driver = std::make_unique<EliteDriver>(argv[1], argv[2], "external_control.script");
+    std::string robot_ip = argv[1];
+    std::string local_ip = "";
+    if (argc >= 3) {
+        local_ip = argv[2];
+    }
+    EliteDriverConfig config;
+    config.robot_ip = robot_ip;
+    config.script_file_path = "external_control.script";
+    config.local_ip = local_ip;
+    s_driver = std::make_unique<EliteDriver>(config);
     s_dashboard = std::make_unique<DashboardClient>();
-    
+
     if (!s_dashboard->connect(argv[1])) {
         return 1;
     }
     std::cout << "Dashboard connected" << std::endl;
 
-    if(!s_dashboard->powerOn()) {
+    if (!s_dashboard->powerOn()) {
         return 1;
     }
     std::cout << "Robot power on" << std::endl;
@@ -43,17 +54,15 @@ int main(int argc, char** argv) {
         std::this_thread::sleep_for(std::chrono::milliseconds(10));
     }
 
-    vector6d_t speedl_vector{0, 0, -0.02, 0, 0, 0};
-    while (true) {
-        speedl_vector = {0, 0, -0.02, 0, 0, 0};
-        s_driver->writeSpeedl(speedl_vector, 0);
+    vector6d_t speedl_vector = {0, 0, -0.02, 0, 0, 0};
+    s_driver->writeSpeedl(speedl_vector, 0);
+    std::this_thread::sleep_for(std::chrono::seconds(5));
 
-        std::this_thread::sleep_for(std::chrono::seconds(3));
+    speedl_vector = {0, 0, 0.02, 0, 0, 0};
+    s_driver->writeSpeedl(speedl_vector, 0);
+    std::this_thread::sleep_for(std::chrono::seconds(5));
 
-        speedl_vector = {0, 0, 0.02, 0, 0, 0};
-        s_driver->writeSpeedl(speedl_vector, 0);
-        std::this_thread::sleep_for(std::chrono::seconds(3));
-    }
+    s_driver->stopControl();
 
     return 0;
 }
