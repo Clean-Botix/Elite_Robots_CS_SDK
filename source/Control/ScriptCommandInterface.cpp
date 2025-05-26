@@ -14,12 +14,20 @@ ScriptCommandInterface::~ScriptCommandInterface() {
 }
 
 bool ScriptCommandInterface::zeroFTSensor() {
+    if (!isRobotConnect()) {
+        return false;
+    }
+
     int32_t buffer[SCRIPT_COMMAND_DATA_SIZE] = {0};
     buffer[0] = htonl(static_cast<int32_t>(Cmd::ZERO_FTSENSOR));
     return write(buffer, sizeof(buffer)) > 0;
 }
 
 bool ScriptCommandInterface::setPayload(double mass, const vector3d_t& cog) {
+    if (!isRobotConnect()) {
+        return false;
+    }
+
     int32_t buffer[SCRIPT_COMMAND_DATA_SIZE] = {0};
     buffer[0] = htonl(static_cast<int32_t>(Cmd::SET_PAYLOAD));
     buffer[1] = htonl(static_cast<int32_t>((mass * CONTROL::COMMON_ZOOM_RATIO)));
@@ -30,6 +38,10 @@ bool ScriptCommandInterface::setPayload(double mass, const vector3d_t& cog) {
 }
 
 bool ScriptCommandInterface::setToolVoltage(const ToolVoltage& vol) {
+    if (!isRobotConnect()) {
+        return false;
+    }
+
     int32_t buffer[SCRIPT_COMMAND_DATA_SIZE] = {0};
     buffer[0] = htonl(static_cast<int32_t>(Cmd::SET_TOOL_VOLTAGE));
     buffer[1] = htonl(static_cast<int32_t>(vol) * CONTROL::COMMON_ZOOM_RATIO);
@@ -41,6 +53,10 @@ bool ScriptCommandInterface::startForceMode(const vector6d_t& task_frame,
                                                  const vector6d_t& wrench, 
                                                  const ForceMode& mode, 
                                                  const vector6d_t& limits) {
+    if (!isRobotConnect()) {
+        return false;
+    }
+
     int32_t buffer[SCRIPT_COMMAND_DATA_SIZE] = {0};
     buffer[0] = htonl(static_cast<int32_t>(Cmd::START_FORCE_MODE));
     int32_t* bp = &buffer[1];
@@ -66,6 +82,10 @@ bool ScriptCommandInterface::startForceMode(const vector6d_t& task_frame,
 }
 
 bool ScriptCommandInterface::endForceMode() {
+    if (!isRobotConnect()) {
+        return false;
+    }
+
     int32_t buffer[SCRIPT_COMMAND_DATA_SIZE] = {0};
     buffer[0] = htonl(static_cast<int32_t>(Cmd::END_FORCE_MODE));
     return write(buffer, sizeof(buffer)) > 0;

@@ -16,6 +16,10 @@ bool ReverseInterface::writeJointCommand(const vector6d_t& pos, ControlMode mode
 }
 
 bool ReverseInterface::writeJointCommand(const vector6d_t* pos, ControlMode mode, int timeout) {
+    if (!isRobotConnect()) {
+        return false;
+    }
+
     int32_t data[REVERSE_DATA_SIZE] = {0};
     data[0] = htonl(timeout);
     data[REVERSE_DATA_SIZE - 1] = htonl((int)mode);
@@ -29,6 +33,10 @@ bool ReverseInterface::writeJointCommand(const vector6d_t* pos, ControlMode mode
 }
 
 bool ReverseInterface::writeTrajectoryControlAction(TrajectoryControlAction action, int point_number, int timeout) {
+    if (!isRobotConnect()) {
+        return false;
+    }
+
     int32_t data[REVERSE_DATA_SIZE] = {0};
     data[0] = htonl(timeout);
     data[1] = htonl((int)action);
@@ -38,6 +46,10 @@ bool ReverseInterface::writeTrajectoryControlAction(TrajectoryControlAction acti
 }
 
 bool ReverseInterface::writeFreedrive(FreedriveAction action, int timeout_ms) {
+    if (!isRobotConnect()) {
+        return false;
+    }
+
     int32_t data[REVERSE_DATA_SIZE] = {0};
     data[0] = htonl(timeout_ms);
     data[1] = htonl((int)action);
@@ -46,6 +58,10 @@ bool ReverseInterface::writeFreedrive(FreedriveAction action, int timeout_ms) {
 }
 
 bool ReverseInterface::stopControl() {
+    if (!isRobotConnect()) {
+        return false;
+    }
+
     int32_t data[REVERSE_DATA_SIZE];
     data[0] = 0;
     data[REVERSE_DATA_SIZE - 1] = htonl((int)ControlMode::MODE_STOPPED);

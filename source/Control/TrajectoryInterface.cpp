@@ -29,6 +29,10 @@ bool TrajectoryInterface::writeTrajectoryPoint( const vector6d_t& positions,
                                                 float time, 
                                                 float blend_radius, 
                                                 bool cartesian) {
+    if (!isRobotConnect()) {
+        return false;
+    }
+
     int32_t buffer[TRAJECTORY_MESSAGE_LEN] = {0};
     for (size_t i = 0; i < 6; i++) {
         buffer[i] = htonl(round(positions[i] * CONTROL::POS_ZOOM_RATIO));
