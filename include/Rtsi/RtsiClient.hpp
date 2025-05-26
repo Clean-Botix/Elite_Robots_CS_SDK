@@ -10,7 +10,7 @@
 #include <vector>
 #include <array>
 #include <functional>
-#include <Elite/RtsiConstants.hpp>
+#include <Rtsi/RtsiConstants.hpp>
 
 namespace ELITE {
 

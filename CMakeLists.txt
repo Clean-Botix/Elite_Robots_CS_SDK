@@ -81,6 +81,7 @@ set(
     Elite/DataType.hpp
     Elite/VersionInfo.hpp
     Dashboard/DashboardClient.hpp
+    Rtsi/RtsiConstants.hpp
     Rtsi/RtsiClientInterface.hpp
     Rtsi/RtsiIOInterface.hpp
     Rtsi/RtsiRecipe.hpp
