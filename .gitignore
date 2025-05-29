@@ -11,3 +11,6 @@ debian/tmp
 debian/elite-cs-series-sdk/
 debian/*.log
 debian/*.substvars
+
+# macOS junk
+.DS_Store
