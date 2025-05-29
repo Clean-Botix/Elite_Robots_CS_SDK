@@ -132,7 +132,7 @@ void EliteDriver::Impl::scriptParamWrite(std::string& file_string, int reverse_p
 }
 
 void EliteDriver::init(const EliteDriverConfig& config) {
-    ELITE_LOG_DEBUG("Elite Driver initialization...");
+    ELITE_LOG_INFO("Elite Driver initialization...");
     
     impl_ = std::make_unique<EliteDriver::Impl>(config.robot_ip, config.local_ip, config.script_sender_port);
     
@@ -142,18 +142,18 @@ void EliteDriver::init(const EliteDriverConfig& config) {
                             config.servoj_time, config.servoj_lookahead_time, config.servoj_gain, config.stopj_acc);
 
     impl_->reverse_server_ = std::make_unique<ReverseInterface>(config.reverse_port);
-    ELITE_LOG_DEBUG("Created reverse interface");
+    ELITE_LOG_INFO("Created reverse interface");
     impl_->trajectory_server_ = std::make_unique<TrajectoryInterface>(config.trajectory_port);
-    ELITE_LOG_DEBUG("Created trajectory interface");
+    ELITE_LOG_INFO("Created trajectory interface");
     impl_->script_command_server_ = std::make_unique<ScriptCommandInterface>(config.script_command_port);
-    ELITE_LOG_DEBUG("Created script command interface");
+    ELITE_LOG_INFO("Created script command interface");
 
     // Instantiate primary port
     impl_->primary_port_ = std::make_unique<PrimaryPortInterface>();
 
     impl_->headless_mode_ = config.headless_mode;
 
-    ELITE_LOG_DEBUG("Elite Driver initialized but not yet connected");
+    ELITE_LOG_INFO("Elite Driver initialized but not yet connected");
 }
 
 EliteDriver::EliteDriver(const EliteDriverConfig& config) {

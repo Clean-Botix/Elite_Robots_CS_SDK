@@ -60,6 +60,7 @@ bool PrimaryPort::sendScript(const std::string& script) {
         ELITE_LOG_ERROR("Send script to robot fail : ", boost::system::system_error(ec).what());
         return false;
     } else {
+        ELITE_LOG_INFO("External control script successfully sent to robot");
         return true;
     }
 }
