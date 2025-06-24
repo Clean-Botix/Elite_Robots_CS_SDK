@@ -50,7 +50,7 @@ SCRIPT_COMMAND_DATA_SIZE = {{SCRIPT_COMMAND_DATA_SIZE_REPLACE}}
 # Ensure that the cmd_servo_joints variable is synchronized under multi-threaded conditions
 SERVOJ_DATA_MUTEX = threading.Lock()
 
-#Global variables are also showed in the Teach pendants variable list
+# Global variables are also showed in the Teach pendants variable list
 global control_mode
 global cmd_speedl_tool_speed
 global cmd_speed_joint
