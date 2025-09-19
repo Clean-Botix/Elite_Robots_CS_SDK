@@ -75,6 +75,16 @@ void DashboardClient::disconnect() {
 
 void DashboardClient::Impl::disconnect() { socket_ptr_.reset(); }
 
+bool DashboardClient::remoteControlOn() {
+    std::string response = sendAndRequest("remoteControl -on\n", "Remote control mode enabled.\r\n");
+    return waitForReply("remoteControl -s\n", "REMOTE\r\n");
+}
+
+bool DashboardClient::remoteControlOff() {
+    std::string response = sendAndRequest("remoteControl -off\n", "Remote control mode disabled.\r\n");
+    return waitForReply("remoteControl -s\n", "LOCAL\r\n");
+}
+
 bool DashboardClient::brakeRelease() {
     std::string response = sendAndRequest("brakeRelease\n", "Brake (Releasing.*|is released).*");
     if (response.empty()) {

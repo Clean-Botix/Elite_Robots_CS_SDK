@@ -43,6 +43,22 @@ class DashboardClient {
     ELITE_EXPORT bool brakeRelease();
 
     /**
+     * @brief Enable remote mode
+     *
+     * @return true success
+     * @return false fail
+     */
+    ELITE_EXPORT bool remoteControlOn();
+
+    /**
+     * @brief Disable remote mode (local mode)
+     *
+     * @return true success
+     * @return false fail
+     */
+    ELITE_EXPORT bool remoteControlOff();
+
+    /**
      * @brief Close safety dialog
      *
      * @return true success
