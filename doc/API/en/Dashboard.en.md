@@ -32,6 +32,26 @@ Disconnects from the dashboard server.
 
 ---
 
+### Enable Remote Mode
+```cpp
+bool remoteControlOn()
+```
+- ***Function***
+Changes mode to remote control.
+- ***Return Value***: Returns true if the operation is successful, and false if it fails.
+
+---
+
+### Disable Remote Mode (Local Mode)
+```cpp
+bool remoteControlOff()
+```
+- ***Function***
+Changes mode to local control.
+- ***Return Value***: Returns true if the operation is successful, and false if it fails.
+
+---
+
 ### Brake Release
 ```cpp
 bool brakeRelease()
