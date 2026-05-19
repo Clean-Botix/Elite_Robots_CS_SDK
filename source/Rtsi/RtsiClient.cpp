@@ -33,8 +33,13 @@ bool RtsiClient::connect(const std::string& ip, int port) {
                 connection_state = ConnectionState::CONNECTED;
             }
         });
-        io_context_.run();
-        
+        io_context_.run_for(std::chrono::seconds(5));
+        if (connection_state != ConnectionState::CONNECTED) {
+            ELITE_LOG_ERROR("Robot RTSI connection to %s:%d timed out or failed", ip.c_str(), port);
+            socketDisconnect();
+            return false;
+        }
+
     } catch(const boost::system::system_error &error) {
         ELITE_LOG_WARN("Robot RTSI connection failed for %s:%d: %s", ip.c_str(), port, error.what());
         return false;

@@ -20,7 +20,7 @@ const char* EliteException::exceptionCodeToString(const Code& ec) {
     case Code::ILLEGAL_PARAM:
         return "parametric is illegal";
     case Code::DASHBOARD_NOT_EXPECT_RECIVE:
-        return "dashboard not expect recive";
+        return "dashboard did not expect to receive";
     case Code::TCP_SERVER_CONTEXT_NULL:
         return "tcp server io_context is nullptr";
     default:

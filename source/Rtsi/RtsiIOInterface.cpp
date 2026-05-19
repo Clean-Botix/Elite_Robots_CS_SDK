@@ -583,6 +583,10 @@ void RtsiIOInterface::setupRecipe() {
     output_recipe_ = setupOutputRecipe(output_recipe_string_, target_frequency_);
 }
 
+void RtsiIOInterface::setDisconnectCallback(std::function<void()> cb) {
+    disconnect_cb_ = std::move(cb);
+}
+
 void RtsiIOInterface::recvLoop() {
     // Calculate the ideal cycle time.
     double period_ms = (1 / target_frequency_) * 1000;
@@ -595,8 +599,12 @@ void RtsiIOInterface::recvLoop() {
                     input_new_cmd_ = false;
                 }
         } catch(const std::exception& e) {
+            ELITE_LOG_ERROR("RTSI recv thread caught exception and is stopping: %s", e.what());
             is_recv_thread_alive_ = false;
+            if (disconnect_cb_) {
+                disconnect_cb_();
+            }
         }
     }
-    ELITE_LOG_INFO("RTSI IO interface sync thread dropped");
+    ELITE_LOG_INFO("RTSI IO interface sync thread stopped");
 }
