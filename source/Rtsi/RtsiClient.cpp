@@ -33,6 +33,7 @@ bool RtsiClient::connect(const std::string& ip, int port) {
                 connection_state = ConnectionState::CONNECTED;
             }
         });
+        // Wait for the asynchronous connect operation to complete or timeout after 5 seconds.
         io_context_.run_for(std::chrono::seconds(5));
         if (connection_state != ConnectionState::CONNECTED) {
             ELITE_LOG_ERROR("Robot RTSI connection to %s:%d timed out or failed", ip.c_str(), port);
