@@ -9,6 +9,8 @@ namespace ELITE
 {
 using namespace std::chrono;
 
+static constexpr double kLogThrottleSeconds = 10.0;
+
 PrimaryPort::PrimaryPort() {
     message_head_.resize(HEAD_LENGTH);
 }
@@ -80,7 +82,7 @@ bool PrimaryPort::parserMessage() {
         // Throttled: this path is hit at the background thread poll rate when the robot
         // is unreachable. Emit at most one message per 5 s to keep the log readable.
         auto now = std::chrono::steady_clock::now();
-        if (std::chrono::duration<double>(now - last_no_conn_log_time_).count() >= 5.0) {
+        if (std::chrono::duration<double>(now - last_no_conn_log_time_).count() >= kLogThrottleSeconds) {
             ELITE_LOG_WARN("No connection to robot primary port to parse status dataframe");
             last_no_conn_log_time_ = now;
         }
@@ -97,7 +99,7 @@ bool PrimaryPort::parserMessage() {
             // Throttled: socket read errors occur continuously when the robot disconnects.
             // Suppress to at most one per 5 s while the background thread retries.
             auto now = std::chrono::steady_clock::now();
-            if (std::chrono::duration<double>(now - last_head_err_log_time_).count() >= 5.0) {
+            if (std::chrono::duration<double>(now - last_head_err_log_time_).count() >= kLogThrottleSeconds) {
                 ELITE_LOG_ERROR("Primary port receive package header exception: %s",
                     boost::system::system_error(ec).what());
                 last_head_err_log_time_ = now;
@@ -206,7 +208,7 @@ bool PrimaryPort::socketConnect(const std::string& ip, int port) {
             // Throttled: connection failures during reconnection attempts produce one
             // error per attempt without this gate. Limit to at most one per 5 s.
             auto now = std::chrono::steady_clock::now();
-            if (std::chrono::duration<double>(now - last_conn_fail_log_time_).count() >= 5.0) {
+            if (std::chrono::duration<double>(now - last_conn_fail_log_time_).count() >= kLogThrottleSeconds) {
                 ELITE_LOG_ERROR("Connect to robot primary port failure: %s", boost::system::system_error(connect_ec).what());
                 last_conn_fail_log_time_ = now;
             }
