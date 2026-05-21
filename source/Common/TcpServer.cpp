@@ -1,11 +1,12 @@
 #include "TcpServer.hpp"
 #include <iostream>
+#include <string>
 #include "EliteException.hpp"
 #include "Log.hpp"
 
 namespace ELITE {
 
-TcpServer::TcpServer(int port, int recv_buf_size) : read_buffer_(recv_buf_size) {
+TcpServer::TcpServer(int port, int recv_buf_size, std::string label) : read_buffer_(recv_buf_size), label_(std::move(label)) {
     if (!s_io_context_ptr_) {
         throw EliteException(EliteException::Code::TCP_SERVER_CONTEXT_NULL);
     }
@@ -65,9 +66,9 @@ void TcpServer::doAccept() {
                 self->socket_ = new_socket;
                 auto local_point = self->socket_->local_endpoint(ignore_ec);
                 auto remote_point = self->socket_->remote_endpoint(ignore_ec);
-                ELITE_LOG_INFO("TCP port %d accept client: %s:%d %s", local_point.port(),
-                               remote_point.address().to_string().c_str(), remote_point.port(),
-                               boost::system::system_error(ec).what());
+                std::string label_str = self->label_.empty() ? "" : " (" + self->label_ + ")";
+                ELITE_LOG_INFO("TCP port %d%s accept: arm controller connected from %s:%d", local_point.port(),
+                               label_str.c_str(), remote_point.address().to_string().c_str(), remote_point.port());
                 // Start async read
                 self->doRead(new_socket);
             } else {
@@ -106,10 +107,18 @@ void TcpServer::doRead(std::shared_ptr<boost::asio::ip::tcp::socket> sock) {
                     boost::system::error_code ignore_ec;
                     auto local_point = sock->local_endpoint(ignore_ec);
                     auto remote_point = sock->remote_endpoint(ignore_ec);
+                    std::string label_str = self->label_.empty() ? "" : " (" + self->label_ + ")";
                     self->closeSocket(sock, ignore_ec);
-                    ELITE_LOG_INFO("TCP port %d close client: %s:%d %s. Reason: %s", local_point.port(),
-                                   remote_point.address().to_string().c_str(), remote_point.port(),
-                                   boost::system::system_error(ignore_ec).what(), boost::system::system_error(ec).what());
+                    if (ec == boost::asio::error::eof) {
+                        ELITE_LOG_INFO("TCP port %d%s closed: arm controller %s:%d disconnected",
+                                       local_point.port(), label_str.c_str(),
+                                       remote_point.address().to_string().c_str(), remote_point.port());
+                    } else {
+                        ELITE_LOG_INFO("TCP port %d%s closed: %s:%d connection error - %s",
+                                       local_point.port(), label_str.c_str(),
+                                       remote_point.address().to_string().c_str(), remote_point.port(),
+                                       boost::system::system_error(ec).what());
+                    }
                 }
             }
         }

@@ -6,6 +6,7 @@
 #include <functional>
 #include <memory>
 #include <mutex>
+#include <string>
 #include <thread>
 #include <vector>
 
@@ -38,9 +39,10 @@ class TcpServer : public std::enable_shared_from_this<TcpServer> {
      *
      * @param port Listen port
      * @param recv_buf_size
+     * @param label Human-readable name for this port, included in log messages
      * @note Ensure that the start() method has been called before instantiation
      */
-    TcpServer(int port, int recv_buf_size);
+    TcpServer(int port, int recv_buf_size, std::string label = "");
 
     /**
      * @brief Destroy the Tcp Server object
@@ -84,6 +86,7 @@ class TcpServer : public std::enable_shared_from_this<TcpServer> {
     std::shared_ptr<boost::asio::io_context> io_context_;
 
    private:
+    std::string label_;
     // Save connected client. In this project, each server is only connected to one client.
     std::shared_ptr<boost::asio::ip::tcp::socket> socket_;
     std::vector<uint8_t> read_buffer_;

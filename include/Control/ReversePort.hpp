@@ -3,6 +3,7 @@
 
 #include "TcpServer.hpp"
 #include <memory>
+#include <string>
 
 namespace ELITE
 {
@@ -16,8 +17,8 @@ protected:
     }
 
 public:
-    ReversePort(int port, int buffer_size = 4) {
-        server_ = std::make_shared<TcpServer>(port, 4);
+    ReversePort(int port, int buffer_size = 4, std::string label = "") {
+        server_ = std::make_shared<TcpServer>(port, buffer_size, std::move(label));
     }
     ~ReversePort() = default;
 
