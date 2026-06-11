@@ -5,6 +5,7 @@
 #include "DataType.hpp"
 
 #include <boost/asio.hpp>
+#include <chrono>
 #include <string>
 #include <thread>
 #include <memory>
@@ -16,6 +17,15 @@
 namespace ELITE
 {
 
+/**
+ * Manages the TCP connection to the robot's primary port (30001/30002) and
+ * runs a background thread that continuously receives and parses status frames.
+ *
+ * Resilience: when the robot is unreachable, the background thread generates
+ * errors at its poll rate. Three time-gated log throttles (last_no_conn_log_time_,
+ * last_conn_fail_log_time_, last_head_err_log_time_) cap repeated error messages
+ * to at most one per 5 seconds so the log remains readable during outages.
+ */
 class PrimaryPort
 {
 private:
@@ -27,7 +37,7 @@ private:
     std::mutex socket_mutex_;
     boost::asio::io_context io_context_;
     std::unique_ptr<boost::asio::ip::tcp::socket> socket_ptr_;
-    
+
     // The buffer of package head
     std::vector<uint8_t> message_head_;
     // The buffer of package body
@@ -38,7 +48,11 @@ private:
     std::unique_ptr<std::thread> socket_async_thread_;
     std::mutex mutex_;
     bool socket_async_thread_alive_;
-    
+    // Log throttle gates — each suppresses its associated error to at most 1 per 5 s
+    std::chrono::steady_clock::time_point last_no_conn_log_time_{};
+    std::chrono::steady_clock::time_point last_conn_fail_log_time_{};
+    std::chrono::steady_clock::time_point last_head_err_log_time_{};
+
     /**
      * @brief The background thread.
      *  Receive and parser package.

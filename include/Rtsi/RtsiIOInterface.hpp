@@ -18,6 +18,7 @@
 #include <Elite/VersionInfo.hpp>
 
 #include <atomic>
+#include <functional>
 #include <memory>
 #include <string>
 #include <thread>
@@ -67,6 +68,14 @@ class RtsiIOInterface : public RtsiClientInterface {
      * A tuple type where the data is, in order, major version, minor version, bugfix, and build.
      */
     ELITE_EXPORT virtual VersionInfo getControllerVersion();
+
+    /**
+     * @brief Register a callback invoked when the recv thread exits due to an error.
+     *        The callback is called from the recv thread before it terminates.
+     *
+     * @param cb Callback function (no arguments, no return value)
+     */
+    ELITE_EXPORT void setDisconnectCallback(std::function<void()> cb);
 
     /**
      * @brief Set the robot speed scaling
@@ -476,6 +485,7 @@ class RtsiIOInterface : public RtsiClientInterface {
     std::unique_ptr<std::thread> recv_thread_;
     std::atomic<bool> is_recv_thread_alive_;
     VersionInfo controller_version_;
+    std::function<void()> disconnect_cb_;
 
     /**
      * @brief Continuously receive and parse data messages.

@@ -5,7 +5,7 @@
 
 using namespace ELITE;
 
-ReverseInterface::ReverseInterface(int port) : ReversePort(port, 4) {
+ReverseInterface::ReverseInterface(int port) : ReversePort(port, 4, CONTROL::REVERSE_PORT_NAME) {
     server_->startListen();
 }
 

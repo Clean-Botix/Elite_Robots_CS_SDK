@@ -46,7 +46,7 @@ public:
         DASHBOARD_NOT_EXPECT_RECIVE,
         /// open file fail
         FILE_OPEN_FAIL,
-        /// The "s_io_context_ptr_" point is nullptr, if throw this expection, SDK had a bug
+        /// The "s_io_context_ptr_" point is nullptr, if throw this exception, SDK had a bug
         TCP_SERVER_CONTEXT_NULL,
     };
 

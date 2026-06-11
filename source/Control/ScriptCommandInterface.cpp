@@ -5,7 +5,7 @@
 namespace ELITE
 {
 
-ScriptCommandInterface::ScriptCommandInterface(int port) : ReversePort(port, 4) {
+ScriptCommandInterface::ScriptCommandInterface(int port) : ReversePort(port, 4, CONTROL::SCRIPT_COMMAND_PORT_NAME) {
     server_->startListen();
 }
 

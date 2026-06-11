@@ -6,7 +6,7 @@
 
 using namespace ELITE;
 
-TrajectoryInterface::TrajectoryInterface(int port) : ReversePort(port, sizeof(TrajectoryMotionResult)) {
+TrajectoryInterface::TrajectoryInterface(int port) : ReversePort(port, sizeof(TrajectoryMotionResult), CONTROL::TRAJECTORY_PORT_NAME) {
     server_->setReceiveCallback([&](const uint8_t data[], int nb){
         if (nb != sizeof(TrajectoryMotionResult)) {
             return;
