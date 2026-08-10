@@ -24,7 +24,8 @@ endif()
 
 # Find third-party library
 find_package(Boost REQUIRED)
-find_package(libssh)
+# libssh is optional; when absent, SSH features fall back to the system's scp/ssh CLI binaries.
+find_package(libssh QUIET)
 if(libssh_FOUND)
     set(THIRDPARTY_LIB ${THIRDPARTY_LIB} ssh)
     add_definitions(-DELITE_USE_LIB_SSH)
